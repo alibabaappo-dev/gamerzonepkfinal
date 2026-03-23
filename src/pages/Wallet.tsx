@@ -91,10 +91,10 @@ export default function Wallet() {
       } else {
         await setDoc(userRef, {
           email: user.email,
-          walletBalance: 1000,
+          walletBalance: 0,
           createdAt: new Date()
         });
-        setBalance(1000);
+        setBalance(0);
       }
     });
     const txQuery = query(
