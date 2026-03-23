@@ -433,7 +433,20 @@ export default function Home({ user, onLogout }) {
                 Dashboard
               </h1>
             </div>
-            
+            {/* JOIN TOURNAMENT BUTTON - PC UI (SAME AS NOTIFICATION) */}
+        <Link to="/tournaments" className="block mb-8 max-w-md">
+          <Card className="flex justify-between items-center border-blue-500/50 hover:bg-[#323235] transition-all">
+            <div>
+              <p className="text-sm text-gray-300">Join Tournament</p>
+              <div className="bg-blue-600 text-white font-bold py-2 px-8 rounded-lg mt-2 text-sm flex items-center justify-center">
+                Join Tournament click here
+              </div>
+            </div>
+            <div className="bg-gray-700 p-3 rounded-lg">
+              <ArrowRight className="h-6 w-6 text-gray-300" />
+            </div>
+          </Card>
+        </Link>
             <div className="flex items-center gap-4">
               {/* Push Notifications First */}
               <div className="bg-[#1C1C1E]/80 backdrop-blur-md border border-gray-800 p-2 pr-4 rounded-2xl flex items-center gap-4 shadow-xl">
