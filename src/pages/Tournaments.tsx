@@ -113,7 +113,7 @@ export default function Tournaments() {
     };
   }, [user]);
 
-  const handleJoin = async () => {
+const handleJoin = async () => {
     if (activeModal && activeModal.type === 'join' && user) {
       const tournament = activeModal.tournament;
       
@@ -125,6 +125,24 @@ export default function Tournaments() {
       setIsJoining(true);
       try {
         await runTransaction(db, async (transaction) => {
+          // 1. Tournament ka latest data read karein (Slots check karne ke liye)
+          const tournamentRef = doc(db, 'tournaments', tournament.id);
+          const tournamentSnap = await transaction.get(tournamentRef);
+          
+          if (!tournamentSnap.exists()) {
+            throw new Error("Tournament not found!");
+          }
+
+          const tournamentData = tournamentSnap.data();
+          const currentParticipants = tournamentData.participants || 0;
+          const maxSlots = tournamentData.totalSlots || 48;
+
+          // --- CRITICAL CHECK: Agar slots full hain to join na karne dein ---
+          if (currentParticipants >= maxSlots) {
+            throw new Error("SLOTS_FULL");
+          }
+
+          // 2. User balance check karein
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await transaction.get(userRef);
           
@@ -134,15 +152,15 @@ export default function Tournaments() {
           
           const currentBalance = userSnap.data().walletBalance || 0;
           if (currentBalance < tournament.entryFee) {
-            throw new Error("Insufficient balance");
+            throw new Error("INSUFFICIENT_BALANCE");
           }
           
-          // 1. Deduct balance
+          // 3. Deduct balance
           transaction.update(userRef, {
             walletBalance: increment(-tournament.entryFee)
           });
           
-          // 2. Add to registrations
+          // 4. Add to registrations
           const regRef = doc(collection(db, 'registrations'));
           transaction.set(regRef, {
             userId: user.uid,
@@ -158,13 +176,12 @@ export default function Tournaments() {
             kills: 0
           });
           
-          // 3. Update tournament participants
-          const tournamentRef = doc(db, 'tournaments', tournament.id);
+          // 5. Update tournament participants count
           transaction.update(tournamentRef, {
             participants: increment(1)
           });
 
-          // 4. Add transaction record
+          // 6. Add transaction record
           const txRef = doc(collection(db, 'transactions'));
           transaction.set(txRef, {
             userId: user.uid,
@@ -185,15 +202,13 @@ export default function Tournaments() {
           });
         });
 
-        // Check for referral reward eligibility (first tournament)
+        // Check for referral reward eligibility (first tournament) - Ye transaction ke bahar theek hai
         if (joinedTournaments.length === 0 && userData?.referredBy) {
           try {
-            // Check if referral system is enabled
             const settingsDoc = await getDoc(doc(db, 'settings', 'referral'));
             const isReferralEnabled = settingsDoc.exists() ? settingsDoc.data().enabled !== false : true;
 
             if (isReferralEnabled) {
-              // Check if request already exists to avoid duplicates
               const q = query(
                 collection(db, 'referral_requests'), 
                 where('refereeId', '==', user.uid)
@@ -212,11 +227,11 @@ export default function Tournaments() {
               }
             }
           } catch (err) {
-            console.error("Error creating referral request:", err);
+            console.error("Referral log error:", err);
           }
         }
 
-        showNotification(`Successfully Joined ${tournament.name} !`, "success");
+        showNotification(`Successfully Joined ${tournament.name}!`, "success");
         setActiveModal(null);
         setFreeFireName('');
         setFreeFireId('');
@@ -224,9 +239,15 @@ export default function Tournaments() {
         setEmail('');
       } catch (error: any) {
         console.error("Error joining tournament:", error);
-        const message = error.message === "Insufficient balance" 
-          ? "Insufficient balance. Please recharge." 
-          : "Failed to join tournament. Please try again.";
+        
+        // Specific error messages
+        let message = "Failed to join tournament. Please try again.";
+        if (error.message === "SLOTS_FULL") {
+          message = "Sorry! All slots are already filled.";
+        } else if (error.message === "INSUFFICIENT_BALANCE") {
+          message = "Insufficient balance. Please recharge your wallet.";
+        }
+        
         showNotification(message, "error");
       } finally {
         setIsJoining(false);
