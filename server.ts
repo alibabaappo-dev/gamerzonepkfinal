@@ -135,11 +135,32 @@ router.post('/send-push', async (req, res) => {
 
     if (tokens.length === 0) return res.status(404).json({ error: 'No tokens found' });
 
-    const message = {
-      notification: { title, body },
+    // REPLACE your `const message = { ... }` block with this:
+    const message: any = {
+      notification: { 
+        title, 
+        body,
+        ...(req.body.image && { imageUrl: req.body.image })
+      },
+      android: {
+        notification: {
+          icon: 'https://i.ibb.co/JwjG5968/logo.png',
+          ...(req.body.image && { imageUrl: req.body.image }),
+          clickAction: 'https://gamerzonepk.com' // Opens site on Android
+        }
+      },
+      webpush: {
+        notification: {
+          icon: 'https://i.ibb.co/JwjG5968/logo.png',
+          badge: 'https://i.ibb.co/JwjG5968/logo.png',
+          ...(req.body.image && { image: req.body.image })
+        },
+        fcmOptions: {
+          link: 'https://gamerzonepk.com' // Opens site on PC/Web Chrome
+        }
+      },
       tokens: [...new Set(tokens)].slice(0, 500)
     };
-
     const response = await admin.messaging().sendEachForMulticast(message);
     res.json({ success: true, count: response.successCount });
   } catch (err: any) {
