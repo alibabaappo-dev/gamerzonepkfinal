@@ -85,18 +85,12 @@ export default function Wallet() {
     });
 
     const userRef = doc(db, 'users', user.uid);
-    const unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
+const unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
       if (docSnap.exists()) {
         setBalance(docSnap.data().walletBalance || 0);
-      } else {
-        await setDoc(userRef, {
-          email: user.email,
-          walletBalance: 0,
-          createdAt: new Date()
-        });
-        setBalance(0);
       }
     });
+    
     const txQuery = query(
       collection(db, 'transactions'),
       where('userId', '==', user.uid)
