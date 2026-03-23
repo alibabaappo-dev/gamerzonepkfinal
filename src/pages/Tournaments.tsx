@@ -93,16 +93,6 @@ export default function Tournaments() {
         const data = userSnap.data();
         setUserBalance(data.walletBalance || 0);
         setUserData(data);
-      } else {
-        // Create user doc if not exists (with default balance for testing)
-        const newUser = {
-          email: user.email,
-          walletBalance: 0, // Default balance
-          createdAt: new Date()
-        };
-        await setDoc(userRef, newUser);
-        setUserBalance(0);
-        setUserData(newUser);
       }
     });
 
