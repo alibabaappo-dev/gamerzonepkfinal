@@ -875,7 +875,20 @@ export default function Home({ user, onLogout }) {
           <h1 className="text-3xl font-bold text-yellow-400">Welcome back, {user.username}!</h1>
           <p className="text-gray-400">Track your progress and manage your gaming journey</p>
         </div>
-
+{/* JOIN TOURNAMENT BUTTON - EXACT SAME UI AS NOTIFICATION */}
+        <Link to="/tournaments" className="block mb-4">
+          <Card className="flex justify-between items-center border-blue-500/50">
+            <div>
+              <p className="text-sm text-gray-300">Join Tournament</p>
+              <div className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg mt-2 text-sm flex items-center justify-center">
+                Join Tournament click here
+              </div>
+            </div>
+            <button className="bg-gray-700 p-3 rounded-lg">
+              <ArrowRight className="h-5 w-5 text-gray-300" />
+            </button>
+          </Card>
+        </Link>
         <Card className="mb-8 flex justify-between items-center border-yellow-500/50">
           <div>
             <p className="text-sm text-gray-300">Enable Notification</p>
