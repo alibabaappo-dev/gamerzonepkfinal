@@ -270,7 +270,7 @@ export default function Home({ user, onLogout }) {
         // Initialize user with 1000 coins for testing as requested
         await setDoc(userRef, {
           email: user.email,
-          walletBalance: 1000,
+          walletBalance: 0,
           createdAt: new Date()
         });
         setStats(prev => ({ ...prev, walletBalance: 1000 }));
