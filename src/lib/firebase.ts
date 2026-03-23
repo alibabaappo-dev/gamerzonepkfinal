@@ -1,10 +1,15 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getMessaging, isSupported } from 'firebase/messaging';
 
-// Your web app's Firebase configuration
+// Aapki Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCadL0HXZ4Dgvzisnqy3WoYgfu3WRg6t6Q",
   authDomain: "zahidffweb.firebaseapp.com",
@@ -15,34 +20,40 @@ const firebaseConfig = {
   appId: "1:376801429633:web:6bce7191f85c991e28e580"
 };
 
-export const isFirebaseConfigured = true;
+// Initialize Firebase App
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firebase
-const app = isFirebaseConfigured 
-  ? (getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()) 
-  : null;
+/**
+ * OPTIMIZED FIRESTORE SETUP
+ * Isse data user ke device par save ho jata hai.
+ * Dubara fetch karne par server se data nahi mangna parta (Kam Reads = Kam Kharcha).
+ */
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 
-// Initialize Firebase Authentication and get a reference to the service
-export const auth = app ? getAuth(app) : {} as any;
-export const googleProvider = app ? new GoogleAuthProvider() : {} as any;
+// Authentication setup
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-if (app) {
-  googleProvider.setCustomParameters({ prompt: 'select_account' });
-}
-export const db = app ? getFirestore(app) : {} as any;
-export const storage = app ? getStorage(app) : {} as any;
+// Storage setup
+export const storage = getStorage(app);
 
+// Messaging (Push Notifications) setup
 export const messaging = async () => {
-  if (app && typeof window !== 'undefined' && await isSupported()) {
-    const messagingInstance = getMessaging(app);
-    return messagingInstance;
+  if (typeof window !== 'undefined' && await isSupported()) {
+    return getMessaging(app);
   }
   return null;
 };
 
 // VAPID Key for web push notifications
-export const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || 'BC4gwoU_67Pas8vPEz3AhS873XPRHmHo0vt9eJCFkUYVc8LRPJejoWica-rcr0feBPPkCzMMld4SVM8eW9qSyA0';
+export const VAPID_KEY = 'BC4gwoU_67Pas8vPEz3AhS873XPRHmHo0vt9eJCFkUYVc8LRPJejoWica-rcr0feBPPkCzMMld4SVM8eW9qSyA0';
 
+// Device ID Generator for "One Device One Account" feature
 export const getDeviceId = () => {
   if (typeof window === 'undefined') return '';
   let deviceId = localStorage.getItem('deviceId');
@@ -52,3 +63,5 @@ export const getDeviceId = () => {
   }
   return deviceId;
 };
+
+export const isFirebaseConfigured = true;
