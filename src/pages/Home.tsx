@@ -245,7 +245,7 @@ export default function Home({ user, onLogout }) {
 
     // 1. User Data Listener (Balance)
     const userRef = doc(db, 'users', user.uid);
-    const unsubUser = onSnapshot(userRef, async (docSnap) => {
+const unsubUser = onSnapshot(userRef, async (docSnap) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
         setStats(prev => ({ 
@@ -266,17 +266,11 @@ export default function Home({ user, onLogout }) {
         } else {
           setShowProfileModal(false);
         }
-      } else {
-        // Initialize user with 1000 coins for testing as requested
-        await setDoc(userRef, {
-          email: user.email,
-          walletBalance: 0,
-          createdAt: new Date()
-        });
-        setStats(prev => ({ ...prev, walletBalance: 1000 }));
       }
     });
+    
 
+    
     // 2. Tournaments Listener (Fetch all once and keep updated)
     const unsubAllTournaments = onSnapshot(collection(db, 'tournaments'), (snapshot) => {
       const tournamentsData = snapshot.docs.map(doc => ({
