@@ -97,11 +97,11 @@ export default function Tournaments() {
         // Create user doc if not exists (with default balance for testing)
         const newUser = {
           email: user.email,
-          walletBalance: 1000, // Default balance
+          walletBalance: 0, // Default balance
           createdAt: new Date()
         };
         await setDoc(userRef, newUser);
-        setUserBalance(1000);
+        setUserBalance(0);
         setUserData(newUser);
       }
     });
