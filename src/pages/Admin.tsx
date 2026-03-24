@@ -10,6 +10,65 @@ import PaymentMethods from '../components/PaymentMethods';
 import PrizeDistributionInputs from '../components/admin/PrizeDistributionInputs';
 import TaskRewardsSettings from '../components/admin/TaskRewardsSettings';
 
+// --- PASTE THIS AT THE TOP (AFTER IMPORTS) ---
+function AlertItem({ alert, db }: { alert: any, db: any }) {
+  const [title, setTitle] = useState(alert.title);
+  const [message, setMessage] = useState(alert.message);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleUpdate = async () => {
+    setIsSaving(true);
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'app_alerts', alert.id), { title, message });
+      window.alert('Changes Saved!');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Delete this popup?')) {
+      const { doc, deleteDoc } = await import('firebase/firestore');
+      await deleteDoc(doc(db, 'app_alerts', alert.id));
+    }
+  };
+
+  const toggleStatus = async () => {
+    const { doc, updateDoc } = await import('firebase/firestore');
+    await updateDoc(doc(db, 'app_alerts', alert.id), { isActive: !alert.isActive });
+  };
+
+  return (
+    <div className="bg-[#131B2F] border border-gray-800 p-6 rounded-[2rem] shadow-xl space-y-4">
+      <input 
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-white font-bold focus:border-yellow-500 outline-none"
+      />
+      <textarea 
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-gray-300 text-sm focus:border-yellow-500 outline-none min-h-[100px]"
+      />
+      <div className="flex justify-between items-center pt-2 border-t border-gray-800/50">
+        <div className="flex gap-2">
+          <button onClick={handleUpdate} disabled={isSaving} className="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase">
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button onClick={toggleStatus} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase ${alert.isActive ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-500'}`}>
+            {alert.isActive ? 'Status: ON' : 'Status: OFF'}
+          </button>
+        </div>
+        <button onClick={handleDelete} className="text-red-500 p-2"><Trash2 size={20} /></button>
+      </div>
+    </div>
+  );
+}
+// --- END OF TOP SECTION ---
+
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -6715,73 +6774,6 @@ useEffect(() => {
           </div>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-// --- YE FUNCTION TYPING AUR SAVING KO HANDLE KAREGA ---
-function AlertItem({ alert }: { alert: any }) {
-  const [title, setTitle] = useState(alert.title);
-  const [message, setMessage] = useState(alert.message);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleUpdate = async () => {
-    setIsSaving(true);
-    try {
-      await updateDoc(doc(db, 'app_alerts', alert.id), { title, message });
-      window.alert('Changes Saved Successfully!');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div className="bg-[#131B2F] border border-gray-800 p-6 rounded-[2rem] shadow-xl space-y-4">
-      <div>
-        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Popup Heading</label>
-        <input 
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-white font-bold focus:border-yellow-500 outline-none mt-1"
-          placeholder="Heading..."
-        />
-      </div>
-      <div>
-        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Message Content</label>
-        <textarea 
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-gray-300 text-sm focus:border-yellow-500 outline-none min-h-[120px] mt-1"
-          placeholder="Detailed message..."
-        />
-      </div>
-      
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-2 border-t border-gray-800/50">
-        <div className="flex gap-2 w-full md:w-auto">
-          <button 
-            onClick={handleUpdate}
-            disabled={isSaving}
-            className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-600/10"
-          >
-            {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14}/>} Save Changes
-          </button>
-          
-          <button 
-            onClick={() => updateDoc(doc(db, 'app_alerts', alert.id), { isActive: !alert.isActive })}
-            className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${alert.isActive ? 'bg-green-500 text-black shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-gray-800 text-gray-500'}`}
-          >
-            {alert.isActive ? 'STATUS: ON' : 'STATUS: OFF'}
-          </button>
-        </div>
-        
-        <button 
-          onClick={() => { if(window.confirm('Delete this popup?')) deleteDoc(doc(db, 'app_alerts', alert.id)) }}
-          className="text-red-500 p-2 hover:bg-red-500/10 rounded-lg transition-colors"
-        >
-          <Trash2 size={20} />
-        </button>
-      </div>
     </div>
   );
 }
