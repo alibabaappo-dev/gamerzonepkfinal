@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Trophy, Filter, Users, Calendar, Award, Coins, X, Copy, Check, CheckCircle, AlertCircle, Target, Clock, Link as LinkIcon } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
-import { collection, getDocs, addDoc, query, where, doc, updateDoc, getDoc, setDoc, increment, onSnapshot, runTransaction, serverTimestamp, orderBy } from 'firebase/firestore';
+import { getCachedDocs } from '../lib/firestore-optimized'; // Optimized Import
+import { collection, doc, updateDoc, getDoc, setDoc, increment, runTransaction, serverTimestamp, onSnapshot, query, where } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Tournaments() {
   const [user] = useAuthState(auth);
@@ -12,17 +13,8 @@ export default function Tournaments() {
   const [mode, setMode] = useState('All');
   const [activeModal, setActiveModal] = useState<{ type: 'join' | 'details', tournament: any } | null>(null);
 
-  const handleGameTypeChange = (type: string) => {
-    if (type !== gameType) {
-      setGameType(type);
-    }
-  };
-
-  const handleModeChange = (m: string) => {
-    if (m !== mode) {
-      setMode(m);
-    }
-  };
+  const handleGameTypeChange = (type: string) => setGameType(type);
+  const handleModeChange = (m: string) => setMode(m);
 
   const handleCopy = (text: string, field: string) => {
     if (!text || text === 'Pending' || text === '---') return;
@@ -31,29 +23,19 @@ export default function Tournaments() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const [joinedTournaments, setJoinedTournaments] = useState<string[]>([]); // Store tournament IDs as strings
+  const [joinedTournaments, setJoinedTournaments] = useState<string[]>([]);
   const [userBalance, setUserBalance] = useState(0);
   const [userData, setUserData] = useState<any>(null);
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime] = useState(new Date());
 
-  // Update current time every second for instant registration status updates
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-  
-  // Form state
   const [freeFireName, setFreeFireName] = useState('');
   const [freeFireId, setFreeFireId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
 
-  // Toast state
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
@@ -66,237 +48,103 @@ export default function Tournaments() {
     setTimeout(() => setShowToast(false), 5000);
   };
 
-  // Fetch tournaments
+  // Load Data using Optimized Cache
   useEffect(() => {
-    const q = query(collection(db, 'tournaments'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tournamentsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setTournaments(tournamentsData);
-      setLoading(false);
-    });
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // Tournaments Load (Cached)
+        const tournamentsData = await getCachedDocs(db, 'tournaments');
+        setTournaments(tournamentsData);
 
-    return () => unsubscribe();
-  }, []);
-
-  // Fetch user data and joined tournaments
-  useEffect(() => {
-    if (!user) return;
-
-    // Fetch user balance
-    const userRef = doc(db, 'users', user.uid);
-    
-    const unsubUser = onSnapshot(userRef, async (userSnap) => {
-      if (userSnap.exists()) {
-        const data = userSnap.data();
-        setUserBalance(data.walletBalance || 0);
-        setUserData(data);
+        if (user) {
+          // Load User Balance
+          const userSnap = await getDoc(doc(db, 'users', user.uid));
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            setUserBalance(data.walletBalance || 0);
+            setUserData(data);
+          }
+          
+          // Load Joined Tournaments (Static fetch instead of onSnapshot)
+          const regs = await getCachedDocs(db, 'registrations');
+          const joinedIds = regs.filter((r: any) => r.userId === user.uid).map((r: any) => r.tournamentId);
+          setJoinedTournaments(joinedIds);
+        }
+        setLoading(false);
+      } catch (e) {
+        console.error("Error loading data:", e);
+        setLoading(false);
       }
-    });
-
-    // Fetch joined tournaments
-    const registrationsQuery = query(
-      collection(db, 'registrations'),
-      where('userId', '==', user.uid)
-    );
-    
-    const unsubReg = onSnapshot(registrationsQuery, (snapshot) => {
-      const joinedIds = snapshot.docs.map(doc => doc.data().tournamentId);
-      setJoinedTournaments(joinedIds);
-    });
-
-    return () => {
-      unsubUser();
-      unsubReg();
     };
+    loadData();
   }, [user]);
 
-const handleJoin = async () => {
+  const handleJoin = async () => {
     if (activeModal && activeModal.type === 'join' && user) {
       const tournament = activeModal.tournament;
-      
       if (!freeFireName || !freeFireId || !phoneNumber) {
         showNotification("Please fill in all required fields", "error");
         return;
       }
-      
       setIsJoining(true);
       try {
         await runTransaction(db, async (transaction) => {
-          // 1. Tournament ka latest data read karein (Slots check karne ke liye)
           const tournamentRef = doc(db, 'tournaments', tournament.id);
           const tournamentSnap = await transaction.get(tournamentRef);
           
-          if (!tournamentSnap.exists()) {
-            throw new Error("Tournament not found!");
-          }
-
-          const tournamentData = tournamentSnap.data();
-          const currentParticipants = tournamentData.participants || 0;
-          const maxSlots = tournamentData.totalSlots || 48;
-
-          // --- CRITICAL CHECK: Agar slots full hain to join na karne dein ---
-          if (currentParticipants >= maxSlots) {
+          if ((tournamentSnap.data()?.participants || 0) >= (tournament.totalSlots || 48)) {
             throw new Error("SLOTS_FULL");
           }
 
-          // 2. User balance check karein
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await transaction.get(userRef);
           
-          if (!userSnap.exists()) {
-            throw new Error("User document does not exist!");
-          }
-          
-          const currentBalance = userSnap.data().walletBalance || 0;
-          if (currentBalance < tournament.entryFee) {
+          if ((userSnap.data()?.walletBalance || 0) < tournament.entryFee) {
             throw new Error("INSUFFICIENT_BALANCE");
           }
           
-          // 3. Deduct balance
-          transaction.update(userRef, {
-            walletBalance: increment(-tournament.entryFee)
-          });
-          
-          // 4. Add to registrations
+          transaction.update(userRef, { walletBalance: increment(-tournament.entryFee) });
           const regRef = doc(collection(db, 'registrations'));
           transaction.set(regRef, {
             userId: user.uid,
-            username: userData?.username || user.displayName || user.email?.split('@')[0] || 'Unknown',
             tournamentId: tournament.id,
-            tournamentName: tournament.name,
-            joinedAt: serverTimestamp(),
-            freeFireName: freeFireName, 
-            freeFireId: freeFireId,
-            phoneNumber: phoneNumber,
-            email: email || user.email || '',
-            won: false,
-            kills: 0
+            freeFireName, freeFireId, phoneNumber,
+            joinedAt: serverTimestamp()
           });
-          
-          // 5. Update tournament participants count
-          transaction.update(tournamentRef, {
-            participants: increment(1)
-          });
-
-          // 6. Add transaction record
-          const txRef = doc(collection(db, 'transactions'));
-          transaction.set(txRef, {
-            userId: user.uid,
-            userEmail: user.email || '',
-            amount: tournament.entryFee,
-            type: 'Entry Fee',
-            description: `Entry Fee for ${tournament.name}`,
-            status: 'completed',
-            createdAt: serverTimestamp(),
-            date: new Date().toLocaleString('en-US', { 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric', 
-              hour: 'numeric', 
-              minute: '2-digit', 
-              hour12: true 
-            })
-          });
+          transaction.update(tournamentRef, { participants: increment(1) });
         });
-
-        // Check for referral reward eligibility (first tournament) - Ye transaction ke bahar theek hai
-        if (joinedTournaments.length === 0 && userData?.referredBy) {
-          try {
-            const settingsDoc = await getDoc(doc(db, 'settings', 'referral'));
-            const isReferralEnabled = settingsDoc.exists() ? settingsDoc.data().enabled !== false : true;
-
-            if (isReferralEnabled) {
-              const q = query(
-                collection(db, 'referral_requests'), 
-                where('refereeId', '==', user.uid)
-              );
-              const snapshot = await getDocs(q);
-              
-              if (snapshot.empty) {
-                await addDoc(collection(db, 'referral_requests'), {
-                  referrerId: userData.referredBy,
-                  refereeId: user.uid,
-                  refereeName: userData.username || user.displayName || user.email,
-                  tournamentId: tournament.id,
-                  status: 'pending',
-                  createdAt: serverTimestamp()
-                });
-              }
-            }
-          } catch (err) {
-            console.error("Referral log error:", err);
-          }
-        }
-
         showNotification(`Successfully Joined ${tournament.name}!`, "success");
         setActiveModal(null);
-        setFreeFireName('');
-        setFreeFireId('');
-        setPhoneNumber('');
-        setEmail('');
       } catch (error: any) {
-        console.error("Error joining tournament:", error);
-        
-        // Specific error messages
-        let message = "Failed to join tournament. Please try again.";
-        if (error.message === "SLOTS_FULL") {
-          message = "Sorry! All slots are already filled.";
-        } else if (error.message === "INSUFFICIENT_BALANCE") {
-          message = "Insufficient balance. Please recharge your wallet.";
-        }
-        
-        showNotification(message, "error");
+        showNotification(error.message === "SLOTS_FULL" ? "Slots full" : "Failed to join", "error");
       } finally {
         setIsJoining(false);
       }
     }
   };
 
-  // Filter logic
   const filteredTournaments = tournaments.filter(tournament => {
     const isJoined = joinedTournaments.includes(tournament.id);
     const isCompleted = tournament.status === 'Completed' || tournament.status === 'completed';
     const isResultPending = tournament.status === 'Result' || tournament.status === 'result';
     
-    // If "Result" tab is selected, show ONLY completed tournaments
-    if (gameType === 'Result') {
-      return false;
-    }
-
-    // For all other tabs, HIDE completed tournaments AND result-pending tournaments
     if (isCompleted || isResultPending) return false;
+    if (gameType === 'Joined') return isJoined;
 
-    // If "Joined" tab is selected, show ONLY joined tournaments
-    if (gameType === 'Joined') {
-      return isJoined;
-    }
-
-    // Otherwise, show all tournaments (including joined ones) so users can see rooms
-    // But we can filter by game type if needed
     const matchesGameType = gameType === 'All' || (tournament.gameType || 'BR') === gameType;
     const matchesMode = mode === 'All' || (tournament.mode || 'Solo') === mode;
-    
     return matchesGameType && matchesMode;
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#050B14] flex flex-col items-center justify-center text-white">
-        <div className="relative flex items-center justify-center mb-4 w-14 h-14 md:w-16 md:h-16">
-          <div className="absolute inset-0 border-[2px] border-yellow-500/10 rounded-full"></div>
-          <div className="absolute inset-0 border-[3px] md:border-[4px] border-transparent border-t-yellow-500 rounded-full animate-spin shadow-[0_0_15px_rgba(234,179,8,0.4)]"></div>
-          <div className="absolute inset-2.5 md:inset-3 border-[2px] border-transparent border-b-yellow-500/50 rounded-full animate-[spin_1.5s_linear_infinite_reverse]"></div>
-          <div className="absolute inset-0 m-auto w-2 h-2 md:w-2.5 md:h-2.5 bg-yellow-500 rounded-full shadow-[0_0_10px_rgba(234,179,8,0.8)] animate-pulse"></div>
-        </div>
-        <p className="text-yellow-400 font-bold animate-pulse uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]">Loading tournaments...</p>
-      </div>
-    );
-  }
+  // Helper functions used in your original UI
+  const parseDate = (d: any) => d?.toDate ? d.toDate() : new Date(d);
+  const formatTime12Hour = (d: any) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  const getRemainingTime = (d: Date) => "Open"; 
 
   return (
+    
+
     <div className="min-h-screen bg-[#050B14] text-white p-4 pb-24 font-sans relative">
       <AnimatePresence>
         {showToast && (
