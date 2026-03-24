@@ -91,6 +91,8 @@ export default function Home({ user, onLogout }) {
   const [recentNotifications, setRecentNotifications] = useState([]);
   const [joinedIds, setJoinedIds] = useState([]);
   const [supportTickets, setSupportTickets] = useState([]);
+  const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
+  const [currentAlertIdx, setCurrentAlertIdx] = useState(0);
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [allTournaments, setAllTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -132,6 +134,23 @@ export default function Home({ user, onLogout }) {
       setIsPushEnabled(true);
     } else {
       setIsPushEnabled(false);
+
+      // ALERTS
+      useEffect(() => {
+    // Ye code alerts check karne ke liye hai
+    const q = query(
+      collection(db, 'app_alerts'), 
+      where('isActive', '==', true), 
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setActiveAlerts(alerts);
+    });
+
+    return () => unsub();
+  }, []); // Isko khali rakhein taake ye page load hote hi chale
       
       // Auto-register if permission is already granted but no tokens are in DB
       const autoRegister = async () => {
@@ -268,6 +287,8 @@ export default function Home({ user, onLogout }) {
         }
       }
     });
+
+    
 
     // 2. Tournaments Listener (Fetch all once and keep updated)
     const unsubAllTournaments = onSnapshot(collection(db, 'tournaments'), (snapshot) => {
@@ -1360,6 +1381,66 @@ export default function Home({ user, onLogout }) {
           </div>
         )}
       </AnimatePresence>
+
+{/* --- GLOBAL POPUP SYSTEM --- */}
+      <AnimatePresence>
+        {activeAlerts.length > 0 && (
+          <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-[#0D0D0D] border border-yellow-500/30 w-full max-w-sm rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(234,179,8,0.2)] relative overflow-hidden"
+            >
+              {/* Background Glow Effect */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-yellow-500/10 blur-[50px] rounded-full pointer-events-none"></div>
+              
+              {/* Manual Close (X) */}
+              <button 
+                onClick={() => setActiveAlerts([])} 
+                className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="text-center relative z-10">
+                {/* Animated Icon */}
+                <div className="w-20 h-20 bg-yellow-400/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-yellow-400/20 shadow-inner">
+                  <Bell size={32} className="text-yellow-400 animate-bounce" />
+                </div>
+
+                {/* Alert Title */}
+                <h2 className="text-xl font-black text-yellow-500 uppercase tracking-tight mb-4">
+                  {activeAlerts[currentAlertIdx]?.title}
+                </h2>
+
+                {/* Alert Message Box */}
+                <div className="bg-gray-900/50 rounded-2xl p-5 border border-gray-800 mb-8 max-h-[250px] overflow-y-auto custom-scrollbar">
+                  <p className="text-gray-300 text-sm font-bold leading-relaxed whitespace-pre-wrap text-left">
+                    {activeAlerts[currentAlertIdx]?.message}
+                  </p>
+                </div>
+
+                {/* OK Button */}
+                <button 
+                  onClick={() => {
+                    // Agar 1 se zyada alerts hain to agla dikhao, warna band kar do
+                    if (currentAlertIdx < activeAlerts.length - 1) {
+                      setCurrentAlertIdx(prev => prev + 1);
+                    } else {
+                      setActiveAlerts([]);
+                    }
+                  }}
+                  className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest shadow-lg shadow-yellow-500/20 active:scale-95 transition-transform"
+                >
+                  OK, Got it
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
     </div>
   );
 }
