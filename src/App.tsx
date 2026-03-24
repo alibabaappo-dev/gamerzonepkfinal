@@ -2,8 +2,8 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { signOut } from 'firebase/auth';
 import { auth, db, messaging } from './lib/firebase';
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore'; // onSnapshot hata diya
-import { onMessage, getToken } from 'firebase/messaging';
+import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { getToken } from 'firebase/messaging';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ShieldAlert, WifiOff, RefreshCw } from 'lucide-react';
 import LoadingScreen from './components/LoadingScreen';
@@ -32,7 +32,50 @@ import Referral from './pages/Referral';
 import ResultsHistory from './pages/ResultsHistory';
 import { VAPID_KEY } from './lib/firebase';
 
-// ... OfflineGuard and PageTransitionLoader remain same ...
+// Components
+function OfflineGuard({ children }: { children: React.ReactNode }) {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const o = () => setIsOnline(true);
+    const f = () => setIsOnline(false);
+    window.addEventListener('online', o);
+    window.addEventListener('offline', f);
+    return () => { window.removeEventListener('online', o); window.removeEventListener('offline', f); };
+  }, []);
+
+  if (!isOnline) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-[#050B14] flex flex-col items-center justify-center p-6 text-center">
+        <WifiOff size={48} className="text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold text-white uppercase">No Internet</h1>
+        <p className="text-gray-400 text-sm mb-6">Check your connection.</p>
+        <button onClick={() => window.location.reload()} className="bg-yellow-500 text-black font-bold py-3 px-8 rounded-xl uppercase text-xs">Try Again</button>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+export const LoaderContext = createContext({ triggerLoader: () => {} });
+
+function PageTransitionLoader({ children, appUser }: { children: React.ReactNode, appUser: any }) {
+  const location = useLocation();
+  const [loading, setLoading] = useState(false);
+  const triggerLoader = () => { setLoading(true); setTimeout(() => setLoading(false), 500); };
+  useEffect(() => { if (appUser) triggerLoader(); }, [location.pathname]);
+  return (
+    <LoaderContext.Provider value={{ triggerLoader }}>
+      <AnimatePresence mode="wait">
+        {loading && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center">
+            <div className="w-12 h-12 border-4 border-t-yellow-500 border-transparent rounded-full animate-spin"></div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div style={{ display: loading ? 'none' : 'block' }}>{children}</div>
+    </LoaderContext.Provider>
+  );
+}
 
 function AppContent({ appUser, handleLogout, appSettings }: { appUser: any, handleLogout: () => void, appSettings: any }) {
   const location = useLocation();
@@ -40,10 +83,6 @@ function AppContent({ appUser, handleLogout, appSettings }: { appUser: any, hand
 
   if (appSettings.maintenanceMode && !appUser?.isAdmin && !appUser?.isOwner) {
     return <div className="min-h-screen bg-black flex items-center justify-center p-4 text-white text-center"><div><h1 className="text-3xl font-bold mb-2">Maintenance</h1><p>{appSettings.maintenanceMessage}</p></div></div>;
-  }
-
-  if (appUser?.isBanned) {
-    return <div className="min-h-screen bg-black flex items-center justify-center p-4 text-center text-white"><div className="bg-[#1C1C1E] p-8 rounded-3xl border border-red-500/20"><ShieldAlert size={48} className="text-red-500 mx-auto mb-4" /><h2 className="text-2xl font-bold mb-2">Banned</h2><p className="text-gray-400 mb-6">{appUser.banReason}</p><button onClick={handleLogout} className="bg-red-500 px-6 py-2 rounded-xl">Logout</button></div></div>;
   }
 
   return (
@@ -81,7 +120,6 @@ export default function App() {
   const [appUser, setAppUser] = useState<any>(null);
   const [appSettings, setAppSettings] = useState({ maintenanceMode: false, maintenanceMessage: '', primaryColor: '#eab308' });
 
-  // Use getDoc instead of onSnapshot to save costs
   useEffect(() => {
     const fetchInitialData = async () => {
       if (user) {
@@ -90,13 +128,10 @@ export default function App() {
         if (userSnap.exists()) {
           setAppUser({ uid: user.uid, email: user.email, ...userSnap.data() });
         }
-
-        // Setup FCM only if needed, wrapped in a check
         try {
           const msg = await messaging();
           if (msg) {
             const token = await getToken(msg, { vapidKey: VAPID_KEY });
-            // Only update if token is new to avoid unnecessary writes
             if (token && !userSnap.data()?.fcmTokens?.includes(token)) {
               await updateDoc(userRef, { fcmTokens: arrayUnion(token) });
             }
@@ -106,11 +141,9 @@ export default function App() {
         setAppUser(null);
       }
     };
-
     fetchInitialData();
   }, [user]);
 
-  // App Settings - Only fetch once
   useEffect(() => {
     const fetchSettings = async () => {
       const snap = await getDoc(doc(db, 'settings', 'app'));
@@ -119,15 +152,13 @@ export default function App() {
     fetchSettings();
   }, []);
 
-  const handleLogout = async () => { await signOut(auth); };
-
   if (loading) return <LoadingScreen message="Gamer Zone PK..." />;
 
   return (
     <Router>
       <OfflineGuard>
-        <AppContent appUser={appUser} handleLogout={handleLogout} appSettings={appSettings} />
+        <AppContent appUser={appUser} handleLogout={() => signOut(auth)} appSettings={appSettings} />
       </OfflineGuard>
     </Router>
   );
-}
+                                                             }
