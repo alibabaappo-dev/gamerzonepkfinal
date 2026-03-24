@@ -141,15 +141,14 @@ export default function Home({ user, onLogout }) {
 
 
 useEffect(() => {
-  // Direct fetch without complex order first to see if it works
-  const q = query(collection(db, 'app_alerts'), where('isActive', '==', true));
-  const unsub = onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log("Active Alerts Found:", data.length); // Mobile browser mein inspect karke check karne ke liye
-    setActiveAlerts(data);
-  });
-  return () => unsub();
-}, []);
+    // Ye code database se Active Alerts uthayega
+    const q = query(collection(db, 'app_alerts'), where('isActive', '==', true));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setActiveAlerts(data);
+    });
+    return () => unsub();
+  }, []);;
       
       // Auto-register if permission is already granted but no tokens are in DB
       const autoRegister = async () => {
@@ -1381,38 +1380,38 @@ useEffect(() => {
         )}
       </AnimatePresence>
 
-  {/* --- GLOBAL POPUP ALERT SYSTEM --- */}
+ {/* --- GLOBAL POPUP ALERT SYSTEM --- */}
       <AnimatePresence>
         {activeAlerts.length > 0 && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="bg-[#0D0D0D] border border-yellow-500/30 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
             >
-              {/* Glow Background */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-yellow-500/10 blur-[50px] rounded-full pointer-events-none"></div>
+              {/* Gold Glow Background */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-yellow-500/10 blur-[60px] rounded-full pointer-events-none" />
               
               <div className="text-center relative z-10">
-                {/* Icon */}
+                {/* Bell Icon */}
                 <div className="w-20 h-20 bg-yellow-400/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-yellow-400/20 shadow-inner">
                   <Bell size={32} className="text-yellow-400 animate-bounce" />
                 </div>
 
-                {/* Title */}
-                <h2 className="text-xl font-black text-yellow-500 uppercase tracking-tight mb-4">
+                {/* Heading */}
+                <h2 className="text-xl font-black text-white uppercase tracking-tight mb-4">
                   {activeAlerts[currentAlertIdx]?.title}
                 </h2>
 
-                {/* Message */}
+                {/* Message Text Box */}
                 <div className="bg-gray-900/50 rounded-2xl p-5 border border-gray-800 mb-8 max-h-[250px] overflow-y-auto custom-scrollbar">
                   <p className="text-gray-300 text-sm font-bold leading-relaxed whitespace-pre-wrap text-left">
                     {activeAlerts[currentAlertIdx]?.message}
                   </p>
                 </div>
 
-                {/* Button */}
+                {/* OK Button */}
                 <button 
                   onClick={() => {
                     if (currentAlertIdx < activeAlerts.length - 1) {
@@ -1421,7 +1420,7 @@ useEffect(() => {
                       setActiveAlerts([]);
                     }
                   }}
-                  className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-transform"
+                  className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest shadow-lg shadow-yellow-500/20 active:scale-95 transition-all"
                 >
                   OK, Got it
                 </button>
