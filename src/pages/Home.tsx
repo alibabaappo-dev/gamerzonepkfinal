@@ -433,20 +433,26 @@ export default function Home({ user, onLogout }) {
                 Dashboard
               </h1>
             </div>
+            
             {/* JOIN TOURNAMENT BUTTON - PC UI (SAME AS NOTIFICATION) */}
-        <Link to="/tournaments" className="block mb-8 max-w-md">
-          <Card className="flex justify-between items-center border-blue-500/50 hover:bg-[#323235] transition-all">
+{/* JOIN TOURNAMENT CARD - PC UI (EXACT MATCH TO NOTIFICATION CARD) */}
+        <Link to="/tournaments" className="block">
+          <div className="bg-[#1C1C1E]/80 backdrop-blur-md border border-gray-800 p-2 pr-4 rounded-2xl flex items-center gap-4 shadow-xl hover:bg-[#252528] transition-all cursor-pointer group">
+            {/* Left Icon Box */}
+            <div className="bg-blue-600/10 p-3 rounded-xl group-hover:bg-blue-600/20 transition-colors">
+              <Trophy className="text-blue-500" size={20} />
+            </div>
+            {/* Text Content */}
             <div>
-              <p className="text-sm text-gray-300">Join Tournament</p>
-              <div className="bg-blue-600 text-white font-bold py-2 px-8 rounded-lg mt-2 text-sm flex items-center justify-center">
-                Join Tournament click here
+              <p className="text-[10px] text-gray-400 font-black mb-1.5 uppercase tracking-widest">Tournaments</p>
+              <div className="bg-blue-600 text-white text-[10px] font-black px-5 py-1.5 rounded-lg hover:bg-blue-500 transition-colors flex items-center justify-center">
+                Join Now
               </div>
             </div>
-            <div className="bg-gray-700 p-3 rounded-lg">
-              <ArrowRight className="h-6 w-6 text-gray-300" />
-            </div>
-          </Card>
+          </div>
         </Link>
+            
+            
             <div className="flex items-center gap-4">
               {/* Push Notifications First */}
               <div className="bg-[#1C1C1E]/80 backdrop-blur-md border border-gray-800 p-2 pr-4 rounded-2xl flex items-center gap-4 shadow-xl">
