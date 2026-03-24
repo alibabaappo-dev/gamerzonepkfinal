@@ -434,7 +434,12 @@ export default function Home({ user, onLogout }) {
               </h1>
             </div>
             
-            {/* JOIN TOURNAMENT BUTTON - PC UI (SAME AS NOTIFICATION) */}
+            
+            
+            
+            <div className="flex items-center gap-4">
+              {/* Push Notifications First */}
+{/* JOIN TOURNAMENT BUTTON - PC UI (SAME AS NOTIFICATION) */}
 {/* JOIN TOURNAMENT CARD - PC UI (EXACT MATCH TO NOTIFICATION CARD) */}
         <Link to="/tournaments" className="block">
           <div className="bg-[#1C1C1E]/80 backdrop-blur-md border border-gray-800 p-2 pr-4 rounded-2xl flex items-center gap-4 shadow-xl hover:bg-[#252528] transition-all cursor-pointer group">
@@ -451,10 +456,7 @@ export default function Home({ user, onLogout }) {
             </div>
           </div>
         </Link>
-            
-            
-            <div className="flex items-center gap-4">
-              {/* Push Notifications First */}
+              
               <div className="bg-[#1C1C1E]/80 backdrop-blur-md border border-gray-800 p-2 pr-4 rounded-2xl flex items-center gap-4 shadow-xl">
                 <div className="bg-gray-800/50 p-3 rounded-xl">
                   <Bell className={isPushEnabled ? "text-green-400" : "text-gray-400"} size={20} />
