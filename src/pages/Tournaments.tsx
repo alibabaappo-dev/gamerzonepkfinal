@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Trophy, Filter, Users, Calendar, Award, Coins, X, Copy, Check, CheckCircle, AlertCircle, Target, Clock, Link as LinkIcon, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Trophy, Filter, Users, Calendar, Award, Coins, X, Copy, Check, CheckCircle, AlertCircle, Target, Clock, Link as LinkIcon, RefreshCw } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
 import { getCachedDocs } from '../lib/firestore-optimized'; // Optimised Helper
 import { collection, doc, updateDoc, getDoc, setDoc, increment, runTransaction, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { motion, AnimatePresence } from 'framer-motion';
+
 
 export default function Tournaments() {
   const [user] = useAuthState(auth);
@@ -632,15 +633,15 @@ export default function Tournaments() {
           </div>
         </div>
       )}
-      {/* Floating Refresh Button */}
-        <button 
-          onClick={loadData}
-          className="fixed bottom-20 right-6 z-40 bg-yellow-500 p-4 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:scale-110 transition-all active:scale-90"
-        >
-          <RefreshCw size={24} className={`text-black ${loading ? "animate-spin" : ""}`} />
-        </button>
 
-      </div> 
-    </div>
+      {/* Floating Refresh Button - Fixed Placement */}
+      <button 
+        onClick={loadData}
+        className="fixed bottom-20 right-6 z-50 bg-yellow-500 p-4 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:scale-110 transition-all active:scale-90"
+      >
+        <RefreshCw size={24} className={`text-black ${loading ? "animate-spin" : ""}`} />
+      </button>
+
+    </div> 
   );
 }
