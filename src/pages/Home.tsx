@@ -141,14 +141,12 @@ export default function Home({ user, onLogout }) {
 
 
 useEffect(() => {
-    // Ye code database se Active Alerts uthayega
-    const q = query(collection(db, 'app_alerts'), where('isActive', '==', true));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setActiveAlerts(data);
-    });
-    return () => unsub();
-  }, []);;
+  const q = query(collection(db, 'app_alerts'), where('isActive', '==', true));
+  const unsub = onSnapshot(q, (snapshot) => {
+    setActiveAlerts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  });
+  return () => unsub();
+}, []);
       
       // Auto-register if permission is already granted but no tokens are in DB
       const autoRegister = async () => {
