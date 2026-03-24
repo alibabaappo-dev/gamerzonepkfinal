@@ -162,7 +162,7 @@ useEffect(() => {
       }
     });
 
-    // 2. Alerts data fetcher
+  // 2. Alerts data fetcher
     const unsubAlerts = onSnapshot(collection(db, 'app_alerts'), (snapshot) => {
       setAppAlerts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
@@ -170,18 +170,18 @@ useEffect(() => {
     // 3. Transaction Settings
     const unsubTransactionSettings = onSnapshot(doc(db, 'admin', 'transaction_settings'), (doc) => {
       if (doc.exists()) {
-        setMinDepositLimit(doc.data().minDeposit || 50);
-        setMinWithdrawalLimit(doc.data().minWithdrawal || 100);
+        const data = doc.data();
+        setMinDepositLimit(data.minDeposit || 50);
+        setMinWithdrawalLimit(data.minWithdrawal || 100);
       }
     });
 
-    // --- ZAROORI: Ye return block saare data fetchers ko sahi se band karega ---
+    // --- CLEANUP: Ye block data leakage aur crash se bachata hai ---
     return () => {
-      unsubAppSettings();
-      unsubAlerts();
-      unsubTransactionSettings();
+      if (unsubAppSettings) unsubAppSettings();
+      if (unsubAlerts) unsubAlerts();
+      if (unsubTransactionSettings) unsubTransactionSettings();
     };
-}, []);
 
  
   
@@ -4602,66 +4602,23 @@ useEffect(() => {
           )}
 
             {/* Manage App Alerts Tab */}
+{/* Manage App Alerts Tab UI */}
 {activeTab === 'app-alerts' && (
   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
     <div className="flex justify-between items-center">
-      <h2 className="text-2xl font-black text-white uppercase tracking-tight">Manage App Alerts</h2>
+      <h2 className="text-2xl font-black text-white uppercase tracking-tight">App Alerts (Popups)</h2>
       <button 
-        onClick={() => addDoc(collection(db, 'app_alerts'), { 
-          title: 'ALERT TITLE', 
-          message: 'Write your message here...', 
-          isActive: false, 
-          createdAt: serverTimestamp() 
-        })}
-        className="bg-yellow-500 hover:bg-yellow-400 text-black px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-yellow-500/20"
+        onClick={() => addDoc(collection(db, 'app_alerts'), { title: 'WARNING!', message: 'Fake deposits will lead to account ban.', isActive: false, createdAt: serverTimestamp() })}
+        className="bg-yellow-500 hover:bg-yellow-400 text-black px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg"
       >
         <Plus size={18} /> Add New Popup
       </button>
     </div>
 
-    <div className="grid grid-cols-1 gap-4">
+    <div className="grid grid-cols-1 gap-6">
+      {/* Loop ke andar AlertItem component use ho raha hai */}
       {appAlerts.map((alert) => (
-        <div key={alert.id} className="bg-[#131B2F] border border-gray-800 p-6 rounded-[2rem] shadow-xl">
-          <div className="flex flex-col md:flex-row justify-between gap-6">
-            <div className="flex-1 space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Popup Heading</label>
-                <input 
-                  className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-white font-bold focus:border-yellow-500 outline-none mt-1"
-                  value={alert.title}
-                  onChange={(e) => updateDoc(doc(db, 'app_alerts', alert.id), { title: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Message Content</label>
-                <textarea 
-                  className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-gray-300 text-sm focus:border-yellow-500 outline-none min-h-[120px] mt-1"
-                  value={alert.message}
-                  onChange={(e) => updateDoc(doc(db, 'app_alerts', alert.id), { message: e.target.value })}
-                />
-              </div>
-            </div>
-            
-            <div className="flex flex-row md:flex-col justify-between items-center md:items-end gap-4 shrink-0">
-              <div className="flex flex-col items-center md:items-end">
-                <span className="text-[10px] font-black text-gray-500 uppercase mb-2">Display Status</span>
-                <button 
-                  onClick={() => updateDoc(doc(db, 'app_alerts', alert.id), { isActive: !alert.isActive })}
-                  className={`w-14 h-7 rounded-full relative transition-all duration-300 ${alert.isActive ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-gray-700'}`}
-                >
-                  <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 ${alert.isActive ? 'left-8' : 'left-1'}`} />
-                </button>
-              </div>
-              
-              <button 
-                onClick={() => { if(window.confirm('Delete this popup?')) deleteDoc(doc(db, 'app_alerts', alert.id)) }}
-                className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white p-3 rounded-xl border border-red-500/20 transition-all"
-              >
-                <Trash2 size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
+        <AlertItem key={alert.id} alert={alert} />
       ))}
     </div>
   </motion.div>
@@ -6758,6 +6715,73 @@ useEffect(() => {
           </div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+// --- YE FUNCTION TYPING AUR SAVING KO HANDLE KAREGA ---
+function AlertItem({ alert }: { alert: any }) {
+  const [title, setTitle] = useState(alert.title);
+  const [message, setMessage] = useState(alert.message);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleUpdate = async () => {
+    setIsSaving(true);
+    try {
+      await updateDoc(doc(db, 'app_alerts', alert.id), { title, message });
+      window.alert('Changes Saved Successfully!');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-[#131B2F] border border-gray-800 p-6 rounded-[2rem] shadow-xl space-y-4">
+      <div>
+        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Popup Heading</label>
+        <input 
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-white font-bold focus:border-yellow-500 outline-none mt-1"
+          placeholder="Heading..."
+        />
+      </div>
+      <div>
+        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Message Content</label>
+        <textarea 
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-gray-300 text-sm focus:border-yellow-500 outline-none min-h-[120px] mt-1"
+          placeholder="Detailed message..."
+        />
+      </div>
+      
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-2 border-t border-gray-800/50">
+        <div className="flex gap-2 w-full md:w-auto">
+          <button 
+            onClick={handleUpdate}
+            disabled={isSaving}
+            className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-600/10"
+          >
+            {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14}/>} Save Changes
+          </button>
+          
+          <button 
+            onClick={() => updateDoc(doc(db, 'app_alerts', alert.id), { isActive: !alert.isActive })}
+            className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${alert.isActive ? 'bg-green-500 text-black shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-gray-800 text-gray-500'}`}
+          >
+            {alert.isActive ? 'STATUS: ON' : 'STATUS: OFF'}
+          </button>
+        </div>
+        
+        <button 
+          onClick={() => { if(window.confirm('Delete this popup?')) deleteDoc(doc(db, 'app_alerts', alert.id)) }}
+          className="text-red-500 p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+        >
+          <Trash2 size={20} />
+        </button>
+      </div>
     </div>
   );
 }
