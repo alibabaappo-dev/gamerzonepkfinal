@@ -5,12 +5,12 @@ import { auth, db, messaging } from './lib/firebase';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { ShieldAlert, WifiOff, RefreshCw } from 'lucide-react';
+import { ShieldAlert, WifiOff } from 'lucide-react';
 import LoadingScreen from './components/LoadingScreen';
 import Navbar from './components/Navbar';
 import { AnimatePresence, motion } from 'framer-motion';
 
-// Pages
+// Import all pages here
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -32,7 +32,6 @@ import Referral from './pages/Referral';
 import ResultsHistory from './pages/ResultsHistory';
 import { VAPID_KEY } from './lib/firebase';
 
-// Components
 function OfflineGuard({ children }: { children: React.ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   useEffect(() => {
@@ -48,7 +47,7 @@ function OfflineGuard({ children }: { children: React.ReactNode }) {
       <div className="fixed inset-0 z-[9999] bg-[#050B14] flex flex-col items-center justify-center p-6 text-center">
         <WifiOff size={48} className="text-red-500 mb-4" />
         <h1 className="text-2xl font-bold text-white uppercase">No Internet</h1>
-        <p className="text-gray-400 text-sm mb-6">Check your connection.</p>
+        <p className="text-gray-400 text-sm mb-6">Check your connection to continue.</p>
         <button onClick={() => window.location.reload()} className="bg-yellow-500 text-black font-bold py-3 px-8 rounded-xl uppercase text-xs">Try Again</button>
       </div>
     );
@@ -56,15 +55,17 @@ function OfflineGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export const LoaderContext = createContext({ triggerLoader: () => {} });
-
 function PageTransitionLoader({ children, appUser }: { children: React.ReactNode, appUser: any }) {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
-  const triggerLoader = () => { setLoading(true); setTimeout(() => setLoading(false), 500); };
-  useEffect(() => { if (appUser) triggerLoader(); }, [location.pathname]);
+  useEffect(() => { 
+    if (appUser) { 
+        setLoading(true); 
+        setTimeout(() => setLoading(false), 500); 
+    } 
+  }, [location.pathname]);
   return (
-    <LoaderContext.Provider value={{ triggerLoader }}>
+    <>
       <AnimatePresence mode="wait">
         {loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center">
@@ -73,7 +74,7 @@ function PageTransitionLoader({ children, appUser }: { children: React.ReactNode
         )}
       </AnimatePresence>
       <div style={{ display: loading ? 'none' : 'block' }}>{children}</div>
-    </LoaderContext.Provider>
+    </>
   );
 }
 
@@ -120,23 +121,26 @@ export default function App() {
   const [appUser, setAppUser] = useState<any>(null);
   const [appSettings, setAppSettings] = useState({ maintenanceMode: false, maintenanceMessage: '', primaryColor: '#eab308' });
 
+  // Initial Data Fetch (Replaces continuous onSnapshot)
   useEffect(() => {
     const fetchInitialData = async () => {
       if (user) {
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          setAppUser({ uid: user.uid, email: user.email, ...userSnap.data() });
-        }
-        try {
-          const msg = await messaging();
-          if (msg) {
-            const token = await getToken(msg, { vapidKey: VAPID_KEY });
-            if (token && !userSnap.data()?.fcmTokens?.includes(token)) {
-              await updateDoc(userRef, { fcmTokens: arrayUnion(token) });
+          const data = userSnap.data();
+          setAppUser({ uid: user.uid, email: user.email, ...data });
+
+          try {
+            const msg = await messaging();
+            if (msg) {
+              const token = await getToken(msg, { vapidKey: VAPID_KEY });
+              if (token && (!data.fcmTokens || !data.fcmTokens.includes(token))) {
+                await updateDoc(userRef, { fcmTokens: arrayUnion(token) });
+              }
             }
-          }
-        } catch (e) { console.error('FCM Error:', e); }
+          } catch (e) { console.error('FCM Error:', e); }
+        }
       } else {
         setAppUser(null);
       }
@@ -161,4 +165,4 @@ export default function App() {
       </OfflineGuard>
     </Router>
   );
-                                                             }
+            }
