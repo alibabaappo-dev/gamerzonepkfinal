@@ -95,10 +95,12 @@ export default function Tournaments() {
         setUserData(data);
       } else {
         // Create user doc if not exists (with default balance for testing)
+        // CHANGED: Added referralRewardPending for new user creation logic
         const newUser = {
           email: user.email,
           walletBalance: 1000, // Default balance
-          createdAt: new Date()
+          createdAt: new Date(),
+          referralRewardPending: false, // ADDED: Default this to false for users created this way
         };
         await setDoc(userRef, newUser);
         setUserBalance(1000);
@@ -123,6 +125,9 @@ export default function Tournaments() {
     };
   }, [user]);
 
+  // ===================================================================================
+  // === THIS IS THE MAIN OPTIMIZED FUNCTION ===========================================
+  // ===================================================================================
   const handleJoin = async () => {
     if (activeModal && activeModal.type === 'join' && user) {
       const tournament = activeModal.tournament;
@@ -142,7 +147,9 @@ export default function Tournaments() {
             throw new Error("User document does not exist!");
           }
           
-          const currentBalance = userSnap.data().walletBalance || 0;
+          const currentUserData = userSnap.data(); // Get current user data inside transaction
+          const currentBalance = currentUserData.walletBalance || 0;
+
           if (currentBalance < tournament.entryFee) {
             throw new Error("Insufficient balance");
           }
@@ -156,7 +163,7 @@ export default function Tournaments() {
           const regRef = doc(collection(db, 'registrations'));
           transaction.set(regRef, {
             userId: user.uid,
-            username: userData?.username || user.displayName || user.email?.split('@')[0] || 'Unknown',
+            username: currentUserData?.username || user.displayName || user.email?.split('@')[0] || 'Unknown',
             tournamentId: tournament.id,
             tournamentName: tournament.name,
             joinedAt: serverTimestamp(),
@@ -193,38 +200,29 @@ export default function Tournaments() {
               hour12: true 
             })
           });
-        });
 
-        // Check for referral reward eligibility (first tournament)
-        if (joinedTournaments.length === 0 && userData?.referredBy) {
-          try {
-            // Check if referral system is enabled
+          // 5. OPTIMIZED: Check for referral reward eligibility (first tournament)
+          // This check is now much faster and happens inside the transaction for consistency.
+          if (currentUserData.referralRewardPending && currentUserData.referredBy) {
             const settingsDoc = await getDoc(doc(db, 'settings', 'referral'));
             const isReferralEnabled = settingsDoc.exists() ? settingsDoc.data().enabled !== false : true;
 
             if (isReferralEnabled) {
-              // Check if request already exists to avoid duplicates
-              const q = query(
-                collection(db, 'referral_requests'), 
-                where('refereeId', '==', user.uid)
-              );
-              const snapshot = await getDocs(q);
-              
-              if (snapshot.empty) {
-                await addDoc(collection(db, 'referral_requests'), {
-                  referrerId: userData.referredBy,
-                  refereeId: user.uid,
-                  refereeName: userData.username || user.displayName || user.email,
-                  tournamentId: tournament.id,
-                  status: 'pending',
-                  createdAt: serverTimestamp()
-                });
-              }
+              const referralRequestRef = doc(collection(db, 'referral_requests'));
+              transaction.set(referralRequestRef, {
+                referrerId: currentUserData.referredBy,
+                refereeId: user.uid,
+                refereeName: currentUserData.username || user.displayName || user.email,
+                tournamentId: tournament.id,
+                status: 'pending',
+                createdAt: serverTimestamp()
+              });
+
+              // Crucially, we now mark the reward as handled to prevent this from running again.
+              transaction.update(userRef, { referralRewardPending: false });
             }
-          } catch (err) {
-            console.error("Error creating referral request:", err);
           }
-        }
+        });
 
         showNotification(`Successfully Joined ${tournament.name} !`, "success");
         setActiveModal(null);
@@ -243,6 +241,7 @@ export default function Tournaments() {
       }
     }
   };
+
 
   // Filter logic
   const filteredTournaments = tournaments.filter(tournament => {
@@ -313,7 +312,6 @@ export default function Tournaments() {
           </motion.div>
         )}
       </AnimatePresence>
-
       <div className="max-w-7xl mx-auto px-4 md:px-6">
 
         {/* Header */}
@@ -360,6 +358,7 @@ export default function Tournaments() {
               ))}
             </div>
           </div>
+
           <div>
             <div className="text-gray-400 text-xs font-bold mb-2">Mode</div>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -383,7 +382,7 @@ export default function Tournaments() {
         {/* Tournaments List */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTournaments.length === 0 ? (
-            <div className="text-center text-gray-500 py-10">
+            <div className="col-span-full text-center text-gray-500 py-10">
               No tournaments found for this filter.
             </div>
           ) : (
@@ -411,7 +410,8 @@ export default function Tournaments() {
                   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
               };
 
-              const getRemainingTime = (targetDate: Date) => {
+              const getRemainingTime = (targetDate: Date | null) => {
+                  if (!targetDate) return '00:00:00';
                   const diff = targetDate.getTime() - now.getTime();
                   if (diff <= 0) return '00:00:00';
                   
@@ -482,10 +482,9 @@ export default function Tournaments() {
                     </div>
                     {/* Timer */}
                     <div className="text-yellow-400 font-mono text-[11px] font-bold">
-                       {getRemainingTime(parseDate(tournament.startTime || tournament.time) || new Date())}
+                       {getRemainingTime(parseDate(tournament.startTime || tournament.time))}
                     </div>
                   </div>
-
                   {/* Info Section */}
                   <div className="space-y-2 mb-4 flex-grow">
                     <div className="flex justify-between items-start">
@@ -573,7 +572,7 @@ export default function Tournaments() {
                         </div>
                         <div className="text-gray-400 font-bold text-xs">
                            {isRegistrationOpen ? (
-                             <span className="text-green-400">Open • Ends in {closeTime ? getRemainingTime(closeTime) : 'forever'}</span>
+                             <span className="text-green-400">Open â€¢ Ends in {closeTime ? getRemainingTime(closeTime) : 'forever'}</span>
                            ) : (
                              <span className="text-red-400">
                                {openTime && now < openTime ? `Opens in ${getRemainingTime(openTime)}` : 'Closed'}
