@@ -4603,26 +4603,26 @@ useEffect(() => {
             </motion.div>
           )}
 
-{/* Spot 2: Manage Popups Tab */}
-{activeTab === 'app-alerts' && (
-  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-    <div className="flex justify-between items-center">
-      <h2 className="text-2xl font-black text-white uppercase tracking-tight">Manage Alerts</h2>
-      <button 
-        onClick={() => addDoc(collection(db, 'app_alerts'), { title: 'NEW ALERT', message: 'Message...', isActive: false, createdAt: serverTimestamp() })}
-        className="bg-yellow-500 text-black px-5 py-2.5 rounded-xl font-black text-xs uppercase"
-      >
-        <Plus size={18} /> Add New
-      </button>
-    </div>
+{/* Manage App Alerts Tab UI */}
+    {activeTab === 'app-alerts' && (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-black text-white uppercase tracking-tight font-sans">App Alerts (Popups)</h2>
+          <button 
+            onClick={() => addDoc(collection(db, 'app_alerts'), { title: 'WARNING!', message: 'Fake deposits will lead to account ban.', isActive: false, createdAt: serverTimestamp() })}
+            className="bg-yellow-500 hover:bg-yellow-400 text-black px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg"
+          >
+            <Plus size={18} /> Add New Popup
+          </button>
+        </div>
 
-    <div className="grid grid-cols-1 gap-6">
-      {appAlerts.map((alert) => (
-        <AlertItem key={alert.id} alert={alert} />
-      ))}
-    </div>
-  </motion.div>
-)}
+        <div className="grid grid-cols-1 gap-6">
+          {appAlerts.map((alert) => (
+            <AlertItem key={alert.id} alert={alert} />
+          ))}
+        </div>
+      </motion.div>
+    )}
 
           {/* Leaderboard Tab */}
           {activeTab === 'leaderboard' && (
@@ -6712,10 +6712,9 @@ useEffect(() => {
                 </div>
               </div>
             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      
-    </div>
+         </div>
+        </div>
+      </div>
+    </AnimatePresence>
   );
 }
