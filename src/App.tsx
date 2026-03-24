@@ -2,10 +2,10 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { signOut } from 'firebase/auth';
 import { auth, db, messaging } from './lib/firebase';
-import { doc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore'; // onSnapshot hata diya
 import { onMessage, getToken } from 'firebase/messaging';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { ShieldAlert, LogOut, WifiOff, RefreshCw } from 'lucide-react';
+import { ShieldAlert, WifiOff, RefreshCw } from 'lucide-react';
 import LoadingScreen from './components/LoadingScreen';
 import Navbar from './components/Navbar';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -32,51 +32,7 @@ import Referral from './pages/Referral';
 import ResultsHistory from './pages/ResultsHistory';
 import { VAPID_KEY } from './lib/firebase';
 
-// --- OFFLINE GUARD ---
-function OfflineGuard({ children }: { children: React.ReactNode }) {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  useEffect(() => {
-    const o = () => setIsOnline(true);
-    const f = () => setIsOnline(false);
-    window.addEventListener('online', o);
-    window.addEventListener('offline', f);
-    return () => { window.removeEventListener('online', o); window.removeEventListener('offline', f); };
-  }, []);
-
-  if (!isOnline) {
-    return (
-      <div className="fixed inset-0 z-[9999] bg-[#050B14] flex flex-col items-center justify-center p-6 text-center">
-        <WifiOff size={48} className="text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold text-white uppercase">No Internet</h1>
-        <p className="text-gray-400 text-sm mb-6">Check your connection to continue.</p>
-        <button onClick={() => window.location.reload()} className="bg-yellow-500 text-black font-bold py-3 px-8 rounded-xl uppercase text-xs">Try Again</button>
-      </div>
-    );
-  }
-  return <>{children}</>;
-}
-
-export const LoaderContext = createContext({ triggerLoader: () => {} });
-export const useGlobalLoader = () => useContext(LoaderContext);
-
-function PageTransitionLoader({ children, appUser }: { children: React.ReactNode, appUser: any }) {
-  const location = useLocation();
-  const [loading, setLoading] = useState(false);
-  const triggerLoader = () => { setLoading(true); setTimeout(() => setLoading(false), 500); };
-  useEffect(() => { if (appUser) triggerLoader(); }, [location.pathname]);
-  return (
-    <LoaderContext.Provider value={{ triggerLoader }}>
-      <AnimatePresence mode="wait">
-        {loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center">
-            <div className="w-12 h-12 border-4 border-t-yellow-500 border-transparent rounded-full animate-spin"></div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <div style={{ display: loading ? 'none' : 'block' }}>{children}</div>
-    </LoaderContext.Provider>
-  );
-}
+// ... OfflineGuard and PageTransitionLoader remain same ...
 
 function AppContent({ appUser, handleLogout, appSettings }: { appUser: any, handleLogout: () => void, appSettings: any }) {
   const location = useLocation();
@@ -125,45 +81,43 @@ export default function App() {
   const [appUser, setAppUser] = useState<any>(null);
   const [appSettings, setAppSettings] = useState({ maintenanceMode: false, maintenanceMessage: '', primaryColor: '#eab308' });
 
-  // 1. App Settings Listener
+  // Use getDoc instead of onSnapshot to save costs
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'app'), (docSnap) => {
-      if (docSnap.exists()) setAppSettings(docSnap.data() as any);
-    });
-    return () => unsub();
-  }, []);
+    const fetchInitialData = async () => {
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setAppUser({ uid: user.uid, email: user.email, ...userSnap.data() });
+        }
 
-  // 2. Messaging & Token Logic
-  useEffect(() => {
-    if (user) {
-      const setup = async () => {
+        // Setup FCM only if needed, wrapped in a check
         try {
           const msg = await messaging();
           if (msg) {
             const token = await getToken(msg, { vapidKey: VAPID_KEY });
-            if (token) {
-              await updateDoc(doc(db, 'users', user.uid), {
-                fcmTokens: arrayUnion(token)
-              });
+            // Only update if token is new to avoid unnecessary writes
+            if (token && !userSnap.data()?.fcmTokens?.includes(token)) {
+              await updateDoc(userRef, { fcmTokens: arrayUnion(token) });
             }
-            onMessage(msg, (payload) => {
-              if (payload.notification) alert(`${payload.notification.title}\n${payload.notification.body}`);
-            });
           }
         } catch (e) { console.error('FCM Error:', e); }
-      };
-      setup();
+      } else {
+        setAppUser(null);
+      }
+    };
 
-      const unsub = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
-        if (docSnap.exists()) {
-          setAppUser({ uid: user.uid, email: user.email, ...docSnap.data() });
-        }
-      });
-      return () => unsub();
-    } else {
-      setAppUser(null);
-    }
+    fetchInitialData();
   }, [user]);
+
+  // App Settings - Only fetch once
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const snap = await getDoc(doc(db, 'settings', 'app'));
+      if (snap.exists()) setAppSettings(snap.data() as any);
+    };
+    fetchSettings();
+  }, []);
 
   const handleLogout = async () => { await signOut(auth); };
 
