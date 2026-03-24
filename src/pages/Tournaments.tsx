@@ -1,82 +1,55 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Trophy, Filter, Users, Calendar, Award, Coins, X, Copy, Check, CheckCircle, AlertCircle, Target, Clock, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Trophy, Filter, Users, Calendar, Award, Coins, X, Copy, Check, CheckCircle, AlertCircle, Target, Clock, Link as LinkIcon, RefreshCw } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
-import { getCachedDocs } from '../lib/firestore-optimized'; // Optimized Import
-import { collection, doc, updateDoc, getDoc, setDoc, increment, runTransaction, serverTimestamp, onSnapshot, query, where } from 'firebase/firestore';
+import { getCachedDocs } from '../lib/firestore-optimized'; // Optimised Helper
+import { collection, doc, updateDoc, getDoc, setDoc, increment, runTransaction, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Tournaments() {
   const [user] = useAuthState(auth);
   const [gameType, setGameType] = useState('All');
   const [mode, setMode] = useState('All');
   const [activeModal, setActiveModal] = useState<{ type: 'join' | 'details', tournament: any } | null>(null);
-
-  const handleGameTypeChange = (type: string) => setGameType(type);
-  const handleModeChange = (m: string) => setMode(m);
-
-  const handleCopy = (text: string, field: string) => {
-    if (!text || text === 'Pending' || text === '---') return;
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
+  
+  // States
   const [joinedTournaments, setJoinedTournaments] = useState<string[]>([]);
   const [userBalance, setUserBalance] = useState(0);
   const [userData, setUserData] = useState<any>(null);
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
-  const [currentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  const [freeFireName, setFreeFireName] = useState('');
-  const [freeFireId, setFreeFireId] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [email, setEmail] = useState('');
+  // Refresh function
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Optimized: Real-time listeners (onSnapshot) hatakar getCachedDocs use kiya
+      const tournamentsData = await getCachedDocs(db, 'tournaments');
+      setTournaments(tournamentsData);
 
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error'>('success');
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
-    setToastMessage(message);
-    setToastType(type);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 5000);
+      if (user) {
+        const userSnap = await getDoc(doc(db, 'users', user.uid));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          setUserBalance(data.walletBalance || 0);
+          setUserData(data);
+        }
+        
+        const regs = await getCachedDocs(db, 'registrations');
+        const joinedIds = regs.filter((r: any) => r.userId === user.uid).map((r: any) => r.tournamentId);
+        setJoinedTournaments(joinedIds);
+      }
+    } catch (e) {
+      console.error("Error:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Load Data using Optimized Cache
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        // Tournaments Load (Cached)
-        const tournamentsData = await getCachedDocs(db, 'tournaments');
-        setTournaments(tournamentsData);
-
-        if (user) {
-          // Load User Balance
-          const userSnap = await getDoc(doc(db, 'users', user.uid));
-          if (userSnap.exists()) {
-            const data = userSnap.data();
-            setUserBalance(data.walletBalance || 0);
-            setUserData(data);
-          }
-          
-          // Load Joined Tournaments (Static fetch instead of onSnapshot)
-          const regs = await getCachedDocs(db, 'registrations');
-          const joinedIds = regs.filter((r: any) => r.userId === user.uid).map((r: any) => r.tournamentId);
-          setJoinedTournaments(joinedIds);
-        }
-        setLoading(false);
-      } catch (e) {
-        console.error("Error loading data:", e);
-        setLoading(false);
-      }
-    };
     loadData();
   }, [user]);
 
@@ -659,6 +632,18 @@ export default function Tournaments() {
           </div>
         </div>
       )}
+      {/* Floating Refresh Button */}
+        <button 
+          onClick={loadData}
+          className="fixed bottom-20 right-6 z-50 bg-yellow-500 p-4 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:scale-110 transition-all active:scale-90"
+        >
+          <RefreshCw size={24} className={`text-black ${loading ? "animate-spin" : ""}`} />
+        </button>
+
+      </div> {/* Ye main div ka end tag hai */}
+    </div>
+  );
+      }
     </div>
   );
 }
