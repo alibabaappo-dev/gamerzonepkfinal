@@ -5,6 +5,7 @@ import { db, messaging } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, setDoc, onSnapshot, orderBy, updateDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
 import { getToken, deleteToken } from 'firebase/messaging';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 
 const Card = ({ children, className = '' }) => (
   <div className={`bg-[#2C2C2E] p-4 rounded-3xl relative overflow-hidden border border-gray-700/50 ${className}`}>
