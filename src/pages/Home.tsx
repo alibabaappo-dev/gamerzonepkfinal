@@ -1,11 +1,11 @@
-import { Wallet, Trophy, Zap, DollarSign, Star, MessageSquare, User, X, ChevronRight, ArrowRight, Bell, BarChart2, LogOut, Download, Plus, Phone, Check, Loader2, Copy, CheckCircle2 } from 'lucide-react';
+import { Wallet, Trophy, Zap, DollarSign, Star, MessageSquare, User, X, ChevronRight, ArrowRight, Bell, BarChart2, LogOut, Download, Plus, Phone, Check, Loader2, Copy, CheckCircle2, XCircle, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { db, messaging } from '../lib/firebase';
+// Consolidating Firestore imports into one line
 import { doc, getDoc, collection, query, where, getDocs, setDoc, onSnapshot, orderBy, updateDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
 import { getToken, deleteToken } from 'firebase/messaging';
-import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+// ONLY USE ONE OF THESE. Using framer-motion as it's standard
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Card = ({ children, className = '' }) => (
