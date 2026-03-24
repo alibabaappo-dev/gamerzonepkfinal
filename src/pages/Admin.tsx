@@ -98,6 +98,7 @@ export default function Admin() {
     { id: 'leaderboard', icon: <Trophy size={16} />, label: 'Leaderboard' },
     { id: 'tasks', icon: <Star size={16} />, label: 'Tasks Control' },
     { id: 'referral', icon: <Users size={16} />, label: 'Referral Control' },
+    { id: 'app-alerts', icon: <BellRing size={16} />, label: 'Manage Alerts' },
     { id: 'viewTransactions', icon: <History size={16} />, label: 'View User Transactions' },
     { id: 'push', icon: <BellRing size={16} />, label: 'Push Notifications' },
     { id: 'support', icon: <MessageSquare size={16} />, label: 'Support Requests', badge: 0 }, // Will be updated below
@@ -137,6 +138,7 @@ export default function Admin() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [appAlerts, setAppAlerts] = useState<any[]>([]);
   const [supportTickets, setSupportTickets] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [appSettings, setAppSettings] = useState({ maintenanceMode: false, primaryColor: '#eab308', maintenanceMessage: '', oneDeviceOneAccount: false, emailVerificationEnabled: false });
@@ -144,8 +146,8 @@ export default function Admin() {
   const [isUpdatingDepositLimit, setIsUpdatingDepositLimit] = useState(false);
   const [minWithdrawalLimit, setMinWithdrawalLimit] = useState(100);
   const [isUpdatingWithdrawalLimit, setIsUpdatingWithdrawalLimit] = useState(false);
-
-  useEffect(() => {
+ 
+useEffect(() => {
     const unsubAppSettings = onSnapshot(doc(db, 'settings', 'app'), (doc) => {
       if (doc.exists()) {
         const data = doc.data();
@@ -166,11 +168,18 @@ export default function Admin() {
       }
     });
 
+    // --- STEP 3: APP ALERTS FETCHING ---
+    const unsubAlerts = onSnapshot(collection(db, 'app_alerts'), (snapshot) => {
+      setAppAlerts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubAppSettings();
       unsubTransactionSettings();
+      unsubAlerts(); // Step 3 unsubscribe
     };
   }, []);
+  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
@@ -4586,6 +4595,72 @@ export default function Admin() {
               </div>
             </motion.div>
           )}
+
+            {/* Manage App Alerts Tab */}
+{activeTab === 'app-alerts' && (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h2 className="text-2xl font-black text-white uppercase tracking-tight">Manage App Alerts</h2>
+      <button 
+        onClick={() => addDoc(collection(db, 'app_alerts'), { 
+          title: 'ALERT TITLE', 
+          message: 'Write your message here...', 
+          isActive: false, 
+          createdAt: serverTimestamp() 
+        })}
+        className="bg-yellow-500 hover:bg-yellow-400 text-black px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-yellow-500/20"
+      >
+        <Plus size={18} /> Add New Popup
+      </button>
+    </div>
+
+    <div className="grid grid-cols-1 gap-4">
+      {appAlerts.map((alert) => (
+        <div key={alert.id} className="bg-[#131B2F] border border-gray-800 p-6 rounded-[2rem] shadow-xl">
+          <div className="flex flex-col md:flex-row justify-between gap-6">
+            <div className="flex-1 space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Popup Heading</label>
+                <input 
+                  className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-white font-bold focus:border-yellow-500 outline-none mt-1"
+                  value={alert.title}
+                  onChange={(e) => updateDoc(doc(db, 'app_alerts', alert.id), { title: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Message Content</label>
+                <textarea 
+                  className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-gray-300 text-sm focus:border-yellow-500 outline-none min-h-[120px] mt-1"
+                  value={alert.message}
+                  onChange={(e) => updateDoc(doc(db, 'app_alerts', alert.id), { message: e.target.value })}
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-row md:flex-col justify-between items-center md:items-end gap-4 shrink-0">
+              <div className="flex flex-col items-center md:items-end">
+                <span className="text-[10px] font-black text-gray-500 uppercase mb-2">Display Status</span>
+                <button 
+                  onClick={() => updateDoc(doc(db, 'app_alerts', alert.id), { isActive: !alert.isActive })}
+                  className={`w-14 h-7 rounded-full relative transition-all duration-300 ${alert.isActive ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-gray-700'}`}
+                >
+                  <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 ${alert.isActive ? 'left-8' : 'left-1'}`} />
+                </button>
+              </div>
+              
+              <button 
+                onClick={() => { if(window.confirm('Delete this popup?')) deleteDoc(doc(db, 'app_alerts', alert.id)) }}
+                className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white p-3 rounded-xl border border-red-500/20 transition-all"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </motion.div>
+)}
 
           {/* Leaderboard Tab */}
           {activeTab === 'leaderboard' && (
