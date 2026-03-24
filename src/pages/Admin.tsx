@@ -10,8 +10,8 @@ import PaymentMethods from '../components/PaymentMethods';
 import PrizeDistributionInputs from '../components/admin/PrizeDistributionInputs';
 import TaskRewardsSettings from '../components/admin/TaskRewardsSettings';
 
-// --- PASTE THIS AT THE TOP (AFTER IMPORTS) ---
-function AlertItem({ alert, db }: { alert: any, db: any }) {
+// --- Spot 1: Alerts Logic ---
+function AlertItem({ alert }: { alert: any }) {
   const [title, setTitle] = useState(alert.title);
   const [message, setMessage] = useState(alert.message);
   const [isSaving, setIsSaving] = useState(false);
@@ -19,55 +19,28 @@ function AlertItem({ alert, db }: { alert: any, db: any }) {
   const handleUpdate = async () => {
     setIsSaving(true);
     try {
-      const { doc, updateDoc } = await import('firebase/firestore');
       await updateDoc(doc(db, 'app_alerts', alert.id), { title, message });
-      window.alert('Changes Saved!');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm('Delete this popup?')) {
-      const { doc, deleteDoc } = await import('firebase/firestore');
-      await deleteDoc(doc(db, 'app_alerts', alert.id));
-    }
-  };
-
-  const toggleStatus = async () => {
-    const { doc, updateDoc } = await import('firebase/firestore');
-    await updateDoc(doc(db, 'app_alerts', alert.id), { isActive: !alert.isActive });
+      window.alert('Saved!');
+    } catch (e) { console.error(e); }
+    finally { setIsSaving(false); }
   };
 
   return (
-    <div className="bg-[#131B2F] border border-gray-800 p-6 rounded-[2rem] shadow-xl space-y-4">
-      <input 
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-white font-bold focus:border-yellow-500 outline-none"
-      />
-      <textarea 
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-gray-300 text-sm focus:border-yellow-500 outline-none min-h-[100px]"
-      />
+    <div className="bg-[#131B2F] border border-gray-800 p-6 rounded-[2rem] shadow-xl space-y-4 mb-4">
+      <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-white font-bold outline-none" />
+      <textarea value={message} onChange={(e) => setMessage(e.target.value)} className="w-full bg-[#0B1121] border border-gray-800 rounded-xl px-4 py-3 text-gray-300 text-sm outline-none min-h-[100px]" />
       <div className="flex justify-between items-center pt-2 border-t border-gray-800/50">
         <div className="flex gap-2">
-          <button onClick={handleUpdate} disabled={isSaving} className="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase">
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
-          <button onClick={toggleStatus} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase ${alert.isActive ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-500'}`}>
+          <button onClick={handleUpdate} disabled={isSaving} className="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase">{isSaving ? '...' : 'Save'}</button>
+          <button onClick={() => updateDoc(doc(db, 'app_alerts', alert.id), { isActive: !alert.isActive })} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase ${alert.isActive ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-500'}`}>
             {alert.isActive ? 'Status: ON' : 'Status: OFF'}
           </button>
         </div>
-        <button onClick={handleDelete} className="text-red-500 p-2"><Trash2 size={20} /></button>
+        <button onClick={() => { if(window.confirm('Delete?')) deleteDoc(doc(db, 'app_alerts', alert.id)) }} className="text-red-500 p-2"><Trash2 size={20} /></button>
       </div>
     </div>
   );
 }
-// --- END OF TOP SECTION ---
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('dashboard');
