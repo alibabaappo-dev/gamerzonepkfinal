@@ -148,6 +148,7 @@ export default function Admin() {
   const [isUpdatingWithdrawalLimit, setIsUpdatingWithdrawalLimit] = useState(false);
  
 useEffect(() => {
+    // 1. App Settings
     const unsubAppSettings = onSnapshot(doc(db, 'settings', 'app'), (doc) => {
       if (doc.exists()) {
         const data = doc.data();
@@ -161,6 +162,12 @@ useEffect(() => {
       }
     });
 
+    // 2. Alerts data fetcher
+    const unsubAlerts = onSnapshot(collection(db, 'app_alerts'), (snapshot) => {
+      setAppAlerts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    // 3. Transaction Settings
     const unsubTransactionSettings = onSnapshot(doc(db, 'admin', 'transaction_settings'), (doc) => {
       if (doc.exists()) {
         setMinDepositLimit(doc.data().minDeposit || 50);
@@ -168,17 +175,15 @@ useEffect(() => {
       }
     });
 
-    // --- STEP 3: APP ALERTS FETCHING ---
-    const unsubAlerts = onSnapshot(collection(db, 'app_alerts'), (snapshot) => {
-      setAppAlerts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
+    // --- ZAROORI: Ye return block saare data fetchers ko sahi se band karega ---
     return () => {
       unsubAppSettings();
+      unsubAlerts();
       unsubTransactionSettings();
-      unsubAlerts(); // Step 3 unsubscribe
     };
-  }, []);
+}, []);
+
+ 
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
