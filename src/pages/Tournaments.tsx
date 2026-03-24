@@ -635,15 +635,12 @@ export default function Tournaments() {
       {/* Floating Refresh Button */}
         <button 
           onClick={loadData}
-          className="fixed bottom-20 right-6 z-50 bg-yellow-500 p-4 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:scale-110 transition-all active:scale-90"
+          className="fixed bottom-20 right-6 z-40 bg-yellow-500 p-4 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:scale-110 transition-all active:scale-90"
         >
           <RefreshCw size={24} className={`text-black ${loading ? "animate-spin" : ""}`} />
         </button>
 
-      </div> {/* Ye main div ka end tag hai */}
-    </div>
-  );
-      }
+      </div> 
     </div>
   );
 }
