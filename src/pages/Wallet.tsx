@@ -26,7 +26,7 @@ interface PaymentMethod {
   imageUrl?: string;
 }
 
-// UPDATED: Helper function to format remaining time with seconds
+// Helper function to format remaining time for Cooldowns (already includes seconds)
 const formatRemainingTime = (targetTime: number) => {
   const diff = targetTime - Date.now();
   if (diff <= 0) return "Ready";
@@ -110,10 +110,10 @@ export default function Wallet() {
           else setWithdrawalCooldown(null);
         }
 
-        // UPDATED: DEPOSIT COOLDOWN LOGIC (2 requests, then wait 2 hours)
+        // DEPOSIT COOLDOWN LOGIC (2 requests, then wait 2 hours)
         if (data.depositRequests && data.depositRequests.length >= 2) {
           const lastReqTime = data.depositRequests[data.depositRequests.length - 1].toDate ? data.depositRequests[data.depositRequests.length - 1].toDate().getTime() : new Date(data.depositRequests[data.depositRequests.length - 1]).getTime();
-          const nextAvailable = lastReqTime + (2 * 60 * 60 * 1000); // CHANGED: 2 hours from the 2nd request
+          const nextAvailable = lastReqTime + (2 * 60 * 60 * 1000); // 2 hours from the 2nd request
           
           if (Date.now() < nextAvailable) {
             setDepositCooldown(nextAvailable); // Lock the user
@@ -128,7 +128,7 @@ export default function Wallet() {
       }
     });
     
-    // OPTIMIZATION: Sirf 3 latest transactions fetch honge
+    // OPTIMIZATION: Sirf 3 latest transactions fetch hongi
     const txQuery = query(
       collection(db, 'transactions'),
       where('userId', '==', user.uid),
@@ -153,12 +153,12 @@ export default function Wallet() {
     };
   }, [user]);
 
-  // UPDATED: Timer to update cooldown display live every second
+  // CHANGED: Timer to update cooldown display live every second (for running seconds)
   useEffect(() => {
     const timer = setInterval(() => {
       if (withdrawalCooldown) setWithdrawalCooldown(prev => prev && prev > Date.now() ? prev : null);
       if (depositCooldown) setDepositCooldown(prev => prev && prev > Date.now() ? prev : null);
-    }, 1000); // CHANGED: Update every second for seconds display
+    }, 1000); // Update every second for seconds display
     return () => clearInterval(timer);
   }, [withdrawalCooldown, depositCooldown]);
 
@@ -212,7 +212,7 @@ export default function Wallet() {
       // Logic: If user already has 2 requests, check if 2 hours passed. If yes, reset to 0.
       if (currentRequests.length >= 2) {
         const lastReqTime = currentRequests[currentRequests.length - 1].toDate ? currentRequests[currentRequests.length - 1].toDate().getTime() : new Date(currentRequests[currentRequests.length - 1]).getTime();
-        if (Date.now() >= lastReqTime + (2 * 60 * 60 * 1000)) { // CHANGED: 2 hours check
+        if (Date.now() >= lastReqTime + (2 * 60 * 60 * 1000)) { // 2 hours check
           currentRequests = []; // 2 hours passed! Reset the count.
         } else {
           showNotification(`Deposit limit reached. Try again later.`, 'error');
@@ -344,7 +344,6 @@ export default function Wallet() {
           </motion.div>
         )}
       </AnimatePresence>
-
       <div className="max-w-md mx-auto">
         <Link to="/" className="flex items-center text-blue-400 mb-6 hover:text-blue-300">
           <ArrowLeft size={20} className="mr-2" />
@@ -625,3 +624,4 @@ export default function Wallet() {
     </div>
   );
 }
+      
