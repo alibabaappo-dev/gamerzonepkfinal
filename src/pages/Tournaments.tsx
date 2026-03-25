@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Trophy, Filter, Users, Calendar, Award, Coins, X, Copy, Check, CheckCircle, AlertCircle, Target, Clock, Link as LinkIcon } from 'lucide-react';
+// UPDATED: RotateCcw icon import kiya gaya hai refresh button ke liye
+import { ArrowLeft, Trophy, Filter, Users, Calendar, Award, Coins, X, Copy, Check, CheckCircle, AlertCircle, Target, Clock, Link as LinkIcon, RotateCcw } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
 import { collection, getDocs, addDoc, query, where, doc, updateDoc, getDoc, setDoc, increment, onSnapshot, runTransaction, serverTimestamp, orderBy } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -38,6 +39,8 @@ export default function Tournaments() {
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  // ADDED: State to trigger re-fetching tournaments
+  const [fetchTrigger, setFetchTrigger] = useState(0);
 
   // Update current time every second for instant registration status updates
   useEffect(() => {
@@ -66,8 +69,9 @@ export default function Tournaments() {
     setTimeout(() => setShowToast(false), 5000);
   };
 
-  // Fetch tournaments
+  // Fetch tournaments (ADDED: fetchTrigger as dependency for manual refresh)
   useEffect(() => {
+    setLoading(true); // Loading state on refresh
     const q = query(collection(db, 'tournaments'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const tournamentsData = snapshot.docs.map(doc => ({
@@ -79,7 +83,7 @@ export default function Tournaments() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [fetchTrigger]); // ADDED: fetchTrigger to re-run this effect on refresh
 
   // Fetch user data and joined tournaments
   useEffect(() => {
@@ -95,12 +99,11 @@ export default function Tournaments() {
         setUserData(data);
       } else {
         // Create user doc if not exists (with default balance for testing)
-        // CHANGED: Added referralRewardPending for new user creation logic
         const newUser = {
           email: user.email,
           walletBalance: 1000, // Default balance
           createdAt: new Date(),
-          referralRewardPending: false, // ADDED: Default this to false for users created this way
+          referralRewardPending: false,
         };
         await setDoc(userRef, newUser);
         setUserBalance(1000);
@@ -141,17 +144,32 @@ export default function Tournaments() {
       try {
         await runTransaction(db, async (transaction) => {
           const userRef = doc(db, 'users', user.uid);
-          const userSnap = await transaction.get(userRef);
+          const userSnap = await transaction.get(userRef); // Get user data inside transaction
           
           if (!userSnap.exists()) {
             throw new Error("User document does not exist!");
           }
           
-          const currentUserData = userSnap.data(); // Get current user data inside transaction
+          const currentUserData = userSnap.data();
           const currentBalance = currentUserData.walletBalance || 0;
 
           if (currentBalance < tournament.entryFee) {
             throw new Error("Insufficient balance");
+          }
+          
+          // ADDED: ATOMIC CHECK FOR SLOTS INSIDE THE TRANSACTION
+          const tournamentRef = doc(db, 'tournaments', tournament.id);
+          const tournamentSnap = await transaction.get(tournamentRef); // Get fresh tournament data
+          if (!tournamentSnap.exists()) {
+            throw new Error("Tournament does not exist!");
+          }
+          
+          const currentTournamentData = tournamentSnap.data();
+          const currentParticipants = currentTournamentData.participants || 0;
+          const totalSlots = currentTournamentData.totalSlots || 48; 
+          
+          if (currentParticipants >= totalSlots) {
+            throw new Error("Tournament slots are full!"); // Prevent over-joining
           }
           
           // 1. Deduct balance
@@ -176,7 +194,6 @@ export default function Tournaments() {
           });
           
           // 3. Update tournament participants
-          const tournamentRef = doc(db, 'tournaments', tournament.id);
           transaction.update(tournamentRef, {
             participants: increment(1)
           });
@@ -202,7 +219,6 @@ export default function Tournaments() {
           });
 
           // 5. OPTIMIZED: Check for referral reward eligibility (first tournament)
-          // This check is now much faster and happens inside the transaction for consistency.
           if (currentUserData.referralRewardPending && currentUserData.referredBy) {
             const settingsDoc = await getDoc(doc(db, 'settings', 'referral'));
             const isReferralEnabled = settingsDoc.exists() ? settingsDoc.data().enabled !== false : true;
@@ -218,7 +234,6 @@ export default function Tournaments() {
                 createdAt: serverTimestamp()
               });
 
-              // Crucially, we now mark the reward as handled to prevent this from running again.
               transaction.update(userRef, { referralRewardPending: false });
             }
           }
@@ -234,7 +249,9 @@ export default function Tournaments() {
         console.error("Error joining tournament:", error);
         const message = error.message === "Insufficient balance" 
           ? "Insufficient balance. Please recharge." 
-          : "Failed to join tournament. Please try again.";
+          : error.message === "Tournament slots are full!"
+            ? "Sorry, all slots for this tournament are now full."
+            : "Failed to join tournament. Please try again.";
         showNotification(message, "error");
       } finally {
         setIsJoining(false);
@@ -242,6 +259,10 @@ export default function Tournaments() {
     }
   };
 
+  // ADDED: handleRefresh function
+  const handleRefresh = () => {
+    setFetchTrigger(prev => prev + 1); // Increment trigger to re-fetch tournaments
+  };
 
   // Filter logic
   const filteredTournaments = tournaments.filter(tournament => {
@@ -282,9 +303,9 @@ export default function Tournaments() {
         <p className="text-yellow-400 font-bold animate-pulse uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]">Loading tournaments...</p>
       </div>
     );
-  }
+          }
 
-  return (
+return (
     <div className="min-h-screen bg-[#050B14] text-white p-4 pb-24 font-sans relative">
       <AnimatePresence>
         {showToast && (
@@ -312,6 +333,7 @@ export default function Tournaments() {
           </motion.div>
         )}
       </AnimatePresence>
+
       <div className="max-w-7xl mx-auto px-4 md:px-6">
 
         {/* Header */}
@@ -572,7 +594,7 @@ export default function Tournaments() {
                         </div>
                         <div className="text-gray-400 font-bold text-xs">
                            {isRegistrationOpen ? (
-                             <span className="text-green-400">Open • Close in {closeTime ? getRemainingTime(closeTime) : 'forever'}</span>
+                             <span className="text-green-400">Open â€¢ Close in {closeTime ? getRemainingTime(closeTime) : 'forever'}</span>
                            ) : (
                              <span className="text-red-400">
                                {openTime && now < openTime ? `Opens in ${getRemainingTime(openTime)}` : 'Closed'}
@@ -797,6 +819,16 @@ export default function Tournaments() {
           </div>
         </div>
       )}
+
+      {/* ADDED: Refresh Button (Floating Action Button) */}
+      <motion.button
+        whileTap={{ scale: 0.9 }}
+        onClick={handleRefresh}
+        className="fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg flex items-center justify-center transition-colors"
+        aria-label="Refresh Tournaments"
+      >
+        <RotateCcw size={24} />
+      </motion.button>
     </div>
   );
 }
