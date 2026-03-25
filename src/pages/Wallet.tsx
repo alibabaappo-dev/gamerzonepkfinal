@@ -390,7 +390,7 @@ export default function Wallet() {
             <span className="text-6xl font-bold text-yellow-400">{balance}</span>
           </div>
           <p className="text-gray-400 text-sm mb-6">
-            coins â€¢ â‰ˆ {balance} PKR
+            Coins = {balance} PKR
           </p>
           <button 
             onClick={() => openModal()}
@@ -398,7 +398,7 @@ export default function Wallet() {
             className={`w-full font-bold py-3 rounded-xl flex items-center justify-center transition-colors ${depositCooldown ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-yellow-500 hover:bg-yellow-400 text-black'}`}
           >
             {depositCooldown ? (
-              <><Clock size={20} className="mr-2" /> Limit Reached ({formatRemainingTime(depositCooldown)})</>
+              <><Clock size={20} className="mr-2" /> CoolDown ({formatRemainingTime(depositCooldown)})</>
             ) : (
               <><Plus size={20} className="mr-2" /> Buy Coins</>
             )}
@@ -505,13 +505,13 @@ export default function Wallet() {
 
           <div className="bg-[#2D1A1A] border border-orange-900/50 rounded-xl p-4 mb-6">
             <p className="text-gray-300 text-sm">
-              <span className="text-orange-500 font-bold">Limits:</span> Min {minWithdrawal} coins â€¢ Max 1,200 coins per request
+              <span className="text-orange-500 font-bold">Limits:</span> Min {minWithdrawal} coins Max 1,200 coins per request
             </p>
           </div>
           {withdrawalCooldown ? (
              <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-6 text-center mb-4">
                <Clock className="mx-auto text-red-400 mb-3" size={32} />
-               <h3 className="text-red-400 font-bold text-lg mb-1">Withdrawal Limit Reached</h3>
+               <h3 className="text-red-400 font-bold text-lg mb-1">Withdrawal is in Cool Down</h3>
                <p className="text-gray-400 text-sm">You can submit another request in:</p>
                <p className="text-2xl font-mono text-white mt-2">{formatRemainingTime(withdrawalCooldown)}</p>
              </div>
