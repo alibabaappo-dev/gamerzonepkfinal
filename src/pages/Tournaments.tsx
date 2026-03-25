@@ -594,7 +594,7 @@ return (
                         </div>
                         <div className="text-gray-400 font-bold text-xs">
                            {isRegistrationOpen ? (
-                             <span className="text-green-400">Open â€¢ Close in {closeTime ? getRemainingTime(closeTime) : 'forever'}</span>
+                             <span className="text-green-400">Open • Close in {closeTime ? getRemainingTime(closeTime) : 'forever'}</span>
                            ) : (
                              <span className="text-red-400">
                                {openTime && now < openTime ? `Opens in ${getRemainingTime(openTime)}` : 'Closed'}
