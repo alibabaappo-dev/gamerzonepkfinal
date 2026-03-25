@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Trophy, UserPlus, Zap, BarChart3, Calendar, Filter, RotateCcw, Gift } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { db, auth } from '../lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+// UPDATED: limit, getDocs, startAfter imports pagination ke liye
+import { collection, query, where, onSnapshot, orderBy, limit, getDocs, startAfter } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { useGlobalLoader } from '../App';
 
 interface Transaction {
   id: string;
@@ -20,41 +20,111 @@ interface Transaction {
   kills?: number;
 }
 
+const TRANSACTIONS_PER_PAGE = 10; // ADDED: Pagination limit
+
 export default function Transactions() {
   const [user] = useAuthState(auth);
   const[transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'All' | 'Income' | 'Expenses'>('All');
 
+  // ADDED: States for pagination
+  const [lastVisible, setLastVisible] = useState<any>(null); // Last fetched document for next query
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true); // To check if there are more transactions to load
+
   const handleTabChange = (tab: 'All' | 'Income' | 'Expenses') => {
     if (tab !== activeTab) {
       setActiveTab(tab);
+      // ADDED: Reset pagination when tab changes
+      setTransactions([]);
+      setLastVisible(null);
+      setHasMore(true);
+      setLoading(true); // Re-fetch data for new tab
     }
   };
 
+  // ADDED: Initial fetch and on tab change fetch logic
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-    const q = query(
-      collection(db, 'transactions'),
-      where('userId', '==', user.uid)
-    );
+    const fetchTransactions = async () => {
+      setLoading(true);
+      try {
+        const q = query(
+          collection(db, 'transactions'),
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc'),
+          limit(TRANSACTIONS_PER_PAGE) // OPTIMIZATION: Initial limit
+        );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const txData = snapshot.docs.map(doc => ({
+        const documentSnapshots = await getDocs(q); // Use getDocs for initial fetch
+        const txData = documentSnapshots.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Transaction[];
+        
+        setTransactions(txData);
+        setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
+        setHasMore(txData.length === TRANSACTIONS_PER_PAGE);
+      } catch (error) {
+        console.error("Error fetching initial transactions:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
+
+    // OPTIMIZATION: onSnapshot is only needed for real-time updates.
+    // For transactions history, getDocs + pagination is more efficient to reduce reads.
+    // If you need real-time updates for the visible 10 transactions, you can re-enable onSnapshot
+    // but it would require a more complex setup to handle real-time pagination efficiently.
+    // For now, it's a one-time fetch per tab/load more.
+    // const unsubscribe = onSnapshot(query(collection(db, 'transactions'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(TRANSACTIONS_PER_PAGE)), (snapshot) => {
+    //   const txData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[];
+    //   setTransactions(txData);
+    //   setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+    //   setHasMore(txData.length === TRANSACTIONS_PER_PAGE);
+    //   setLoading(false);
+    // });
+    // return () => unsubscribe();
+
+  }, [user, activeTab]); // Re-fetch when user or activeTab changes
+
+  // ADDED: Function to load more transactions
+  const loadMoreTransactions = async () => {
+    if (!lastVisible || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const q = query(
+        collection(db, 'transactions'),
+        where('userId', '==', user?.uid),
+        orderBy('createdAt', 'desc'),
+        startAfter(lastVisible), // Start after the last document seen
+        limit(TRANSACTIONS_PER_PAGE) // Fetch next 10
+      );
+
+      const documentSnapshots = await getDocs(q);
+      const newTransactions = documentSnapshots.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })).sort((a: any, b: any) => {
-        const timeA = a.createdAt?.toMillis() || 0;
-        const timeB = b.createdAt?.toMillis() || 0;
-        return timeB - timeA;
-      }) as Transaction[];
-      setTransactions(txData);
-      setLoading(false);
-    });
+      })) as Transaction[];
 
-    return () => unsubscribe();
-  }, [user]);
+      setTransactions(prev => [...prev, ...newTransactions]);
+      setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
+      setHasMore(newTransactions.length === TRANSACTIONS_PER_PAGE);
+    } catch (error) {
+      console.error("Error loading more transactions:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
 
   // Check if transaction is positive (Income)
   const isIncome = (type: string) => {
@@ -116,25 +186,22 @@ export default function Transactions() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    if (dateString.includes(',') && (dateString.includes('AM') || dateString.includes('PM'))) {
-      return dateString;
+  const formatDate = (dateValue: any) => {
+    if (!dateValue) return '';
+    // Handle Firestore Timestamp objects
+    const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
+    if (isNaN(date.getTime())) {
+      // Fallback for non-Date-like strings if necessary
+      return String(dateValue).replace('T', ' ');
     }
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString.replace('T', ' ');
-      return date.toLocaleString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric', 
-        hour: 'numeric', 
-        minute: '2-digit', 
-        hour12: true 
-      });
-    } catch (e) {
-      return dateString.replace('T', ' ');
-    }
+    return date.toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric', 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true 
+    });
   };
 
   const filteredTransactions = transactions.filter(tx => {
@@ -304,6 +371,29 @@ export default function Transactions() {
                   <Zap size={24} className="text-gray-600" />
                 </div>
                 <p className="text-gray-500 text-sm font-medium">No transactions found in this category.</p>
+              </div>
+            )}
+            
+            {/* ADDED: Load More Button */}
+            {hasMore && (
+              <div className="text-center mt-6">
+                <button
+                  onClick={loadMoreTransactions}
+                  disabled={loadingMore}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
+                >
+                  {loadingMore ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Loading...
+                    </>
+                  ) : (
+                    'Load More'
+                  )}
+                </button>
               </div>
             )}
           </div>
