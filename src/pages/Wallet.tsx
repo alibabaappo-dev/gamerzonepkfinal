@@ -362,7 +362,7 @@ export default function Wallet() {
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="max-w-md mx-auto">
+            <div className="max-w-md mx-auto">
         <Link to="/" className="flex items-center text-blue-400 mb-6 hover:text-blue-300">
           <ArrowLeft size={20} className="mr-2" />
           <span>Back to Dashboard</span>
@@ -390,7 +390,7 @@ export default function Wallet() {
             <span className="text-6xl font-bold text-yellow-400">{balance}</span>
           </div>
           <p className="text-gray-400 text-sm mb-6">
-            Coins = {balance} PKR
+            coins â€¢ â‰ˆ {balance} PKR
           </p>
           <button 
             onClick={() => openModal()}
@@ -505,10 +505,9 @@ export default function Wallet() {
 
           <div className="bg-[#2D1A1A] border border-orange-900/50 rounded-xl p-4 mb-6">
             <p className="text-gray-300 text-sm">
-              <span className="text-orange-500 font-bold">Limits:</span> Min {minWithdrawal} coins Max 1,200 coins per request
+              <span className="text-orange-500 font-bold">Limits:</span> Min {minWithdrawal} coins â€¢ Max 1,200 coins per request
             </p>
           </div>
-
           {withdrawalCooldown ? (
              <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-6 text-center mb-4">
                <Clock className="mx-auto text-red-400 mb-3" size={32} />
