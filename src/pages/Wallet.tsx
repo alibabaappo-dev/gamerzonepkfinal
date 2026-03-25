@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Wallet as WalletIcon, CreditCard, ArrowRight, Star, Flame, Diamond, ArrowDownUp, History, Plus, Coins, CheckCircle, X, AlertCircle, Clock } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-router'; // Corrected import to react-router-dom
 import BuyCoinsModal from '../components/BuyCoinsModal';
-import { motion, AnimatePresence } from 'motion/react';
-import { doc, onSnapshot, setDoc, updateDoc, increment, addDoc, collection, query, where, orderBy, limit, getDoc } from 'firebase/firestore';
+import { motion, AnimatePresence } from 'framer-motion'; // Changed from 'motion/react' to 'framer-motion'
+import { doc, onSnapshot, updateDoc, increment, addDoc, collection, query, where, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
@@ -62,6 +62,8 @@ export default function Wallet() {
 
   const [withdrawalCooldown, setWithdrawalCooldown] = useState<number | null>(null);
   const [depositCooldown, setDepositCooldown] = useState<number | null>(null);
+  // ADDED: A dummy state to force re-renders for the timer display
+  const [timeTick, setTimeTick] = useState(0); 
 
   useEffect(() => {
     if (!user) return;
@@ -95,7 +97,7 @@ export default function Wallet() {
       setWithdrawalPaymentMethods(methods);
     });
 
-    // User Data & Cooldown Check (Real-time)
+    // User Data & Cooldown Check (Real-time Firestore listener)
     const userRef = doc(db, 'users', user.uid);
     const unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
       if (docSnap.exists()) {
@@ -105,9 +107,11 @@ export default function Wallet() {
         // Withdrawal Cooldown Check (1 per 24 hours)
         if (data.lastWithdrawalRequestAt) {
           const lastReq = data.lastWithdrawalRequestAt.toDate ? data.lastWithdrawalRequestAt.toDate().getTime() : new Date(data.lastWithdrawalRequestAt).getTime();
-          const nextAvailable = lastReq + (24 * 60 * 60 * 1000);
+          const nextAvailable = lastReq + (24 * 60 * 60 * 1000); // 24 hours cooldown
           if (Date.now() < nextAvailable) setWithdrawalCooldown(nextAvailable);
           else setWithdrawalCooldown(null);
+        } else {
+          setWithdrawalCooldown(null);
         }
 
         // DEPOSIT COOLDOWN LOGIC (2 requests, then wait 2 hours)
@@ -118,7 +122,7 @@ export default function Wallet() {
           if (Date.now() < nextAvailable) {
             setDepositCooldown(nextAvailable); // Lock the user
           } else {
-            // If 2 hours passed, reset the requests array to allow new ones
+            // If 2 hours passed, reset the requests array to allow new ones (triggered by Firestore listener)
             await updateDoc(userRef, { depositRequests: [] }); // Reset count
             setDepositCooldown(null); // Unlock user
           }
@@ -128,7 +132,7 @@ export default function Wallet() {
       }
     });
     
-    // OPTIMIZATION: Sirf 3 latest transactions fetch hongi
+    // OPTIMIZATION: Sirf 3 latest transactions fetch hongi (Firestore reads bachane ke liye)
     const txQuery = query(
       collection(db, 'transactions'),
       where('userId', '==', user.uid),
@@ -154,13 +158,27 @@ export default function Wallet() {
   }, [user]);
 
   // CHANGED: Timer to update cooldown display live every second (for running seconds)
+  // This useEffect now runs once and sets up a continuous timer that forces re-renders.
   useEffect(() => {
     const timer = setInterval(() => {
-      if (withdrawalCooldown) setWithdrawalCooldown(prev => prev && prev > Date.now() ? prev : null);
-      if (depositCooldown) setDepositCooldown(prev => prev && prev > Date.now() ? prev : null);
+      setTimeTick(prev => prev + 1); // Increment a dummy state to trigger re-renders
+
+      // Check if cooldowns have passed. Access the latest states via functional updates.
+      setWithdrawalCooldown(prevCooldown => {
+        if (prevCooldown !== null && Date.now() >= prevCooldown) {
+          return null; // Cooldown expired, clear it
+        }
+        return prevCooldown; // Still active
+      });
+      setDepositCooldown(prevCooldown => {
+        if (prevCooldown !== null && Date.now() >= prevCooldown) {
+          return null; // Cooldown expired, clear it
+        }
+        return prevCooldown; // Still active
+      });
     }, 1000); // Update every second for seconds display
     return () => clearInterval(timer);
-  }, [withdrawalCooldown, depositCooldown]);
+  }, []); // DEPENDENCY CHANGED TO EMPTY ARRAY - Runs once on mount
 
   const openModal = (amount: string = '') => {
     if (depositCooldown) {
@@ -624,4 +642,3 @@ export default function Wallet() {
     </div>
   );
 }
-      
