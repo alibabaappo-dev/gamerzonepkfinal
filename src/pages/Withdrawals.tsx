@@ -1,10 +1,24 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, AlertCircle, CheckCircle, X, Wallet, History, CreditCard, Coins } from 'lucide-react';
+import { ArrowLeft, AlertCircle, CheckCircle, X, Wallet, History, CreditCard, Coins, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../lib/firebase';
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp, orderBy, doc, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp, orderBy, doc, runTransaction, updateDoc } from 'firebase/firestore';
+
+// Helper function to format remaining time (hours, minutes, seconds)
+const formatRemainingTime = (targetTime: number) => {
+  const diff = targetTime - Date.now();
+  if (diff <= 0) return "Ready";
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  const format = (num: number) => num.toString().padStart(2, '0');
+
+  return `${format(hours)}h ${format(minutes)}m ${format(seconds)}s`;
+};
 
 export default function Withdrawals() {
   const [user] = useAuthState(auth);
@@ -12,7 +26,7 @@ export default function Withdrawals() {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
-  const [accountName, setAccountName] = useState(''); // Added account name field
+  const [accountName, setAccountName] = useState('');
   const [minWithdrawal, setMinWithdrawal] = useState(100);
   const [requests, setRequests] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -23,13 +37,31 @@ export default function Withdrawals() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
+  const [withdrawalCooldown, setWithdrawalCooldown] = useState<number | null>(null);
+  // ADDED: A dummy state to force re-renders for the timer display
+  const [timeTick, setTimeTick] = useState(0); 
+
   useEffect(() => {
     if (!user) return;
 
-    // Fetch user balance
-    const unsubUser = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-      if (doc.exists()) {
-        setBalance(doc.data().walletBalance || 0);
+    // Fetch user balance and withdrawal cooldown status (Real-time listener)
+    const unsubUser = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setBalance(data.walletBalance || 0);
+
+        // Withdrawal Cooldown Check (1 request per 24 hours)
+        if (data.lastWithdrawalRequestAt) {
+          const lastReq = data.lastWithdrawalRequestAt.toDate ? data.lastWithdrawalRequestAt.toDate().getTime() : new Date(data.lastWithdrawalRequestAt).getTime();
+          const nextAvailable = lastReq + (24 * 60 * 60 * 1000); // 24 hours cooldown
+          if (Date.now() < nextAvailable) {
+            setWithdrawalCooldown(nextAvailable);
+          } else {
+            setWithdrawalCooldown(null);
+          }
+        } else {
+          setWithdrawalCooldown(null); // No previous request, so no cooldown
+        }
       }
     });
 
@@ -51,11 +83,12 @@ export default function Withdrawals() {
       }
     });
 
-    // Fetch withdrawal requests
+    // Fetch withdrawal requests (all of them, as there is no limit here yet)
     const q = query(
       collection(db, 'transactions'),
       where('userId', '==', user.uid),
-      where('type', '==', 'Withdrawal')
+      where('type', '==', 'Withdrawal'),
+      orderBy('createdAt', 'desc')
     );
 
     const unsubRequests = onSnapshot(q, (snapshot) => {
@@ -64,13 +97,6 @@ export default function Withdrawals() {
         ...doc.data()
       }));
       
-      // Sort by createdAt descending locally
-      reqs.sort((a: any, b: any) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
-        return timeB - timeA;
-      });
-
       setRequests(reqs);
       setLoading(false);
     }, (error) => {
@@ -86,6 +112,23 @@ export default function Withdrawals() {
     };
   }, [user]);
 
+  // CHANGED: Timer to update cooldown display live every second (for running seconds)
+  // This useEffect now runs once and sets up a continuous timer.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeTick(prev => prev + 1); // Increment a dummy state to trigger re-renders
+
+      // Check if withdrawalCooldown has passed. Access the latest state via functional update
+      setWithdrawalCooldown(prevCooldown => {
+        if (prevCooldown !== null && Date.now() >= prevCooldown) {
+          return null; // Cooldown expired, clear it
+        }
+        return prevCooldown; // Still active
+      });
+    }, 1000); // Update every second for seconds display
+    return () => clearInterval(timer);
+  }, []); // DEPENDENCY CHANGED TO EMPTY ARRAY - Runs once on mount
+
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setToastMessage(message);
     setToastType(type);
@@ -95,6 +138,12 @@ export default function Withdrawals() {
 
   const handleSubmit = async () => {
     if (!user) return;
+
+    // Cooldown check before submission
+    if (withdrawalCooldown) {
+      showNotification(`Withdrawal limit reached! Try again in ${formatRemainingTime(withdrawalCooldown)}`, 'error');
+      return;
+    }
 
     const numAmount = parseInt(amount);
 
@@ -147,7 +196,11 @@ export default function Withdrawals() {
           throw new Error("Insufficient Balance");
         }
 
-        transaction.update(userRef, { walletBalance: currentBalance - numAmount });
+        // Update user's balance AND store last withdrawal request time for cooldown
+        transaction.update(userRef, { 
+          walletBalance: currentBalance - numAmount,
+          lastWithdrawalRequestAt: serverTimestamp() // Store timestamp for cooldown
+        });
         
         const txRef = doc(collection(db, 'transactions'));
         transaction.set(txRef, {
@@ -237,6 +290,16 @@ export default function Withdrawals() {
           </div>
 
           <div className="space-y-4 relative z-10">
+            {/* Cooldown display at the top of the form */}
+            {withdrawalCooldown ? (
+              <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-center mb-4">
+                <Clock className="mx-auto text-red-400 mb-2" size={24} />
+                <h3 className="text-red-400 font-bold text-sm mb-1">Withdrawal Limit Reached</h3>
+                <p className="text-gray-400 text-xs">You can submit another request in:</p>
+                <p className="text-lg font-mono text-white mt-1">{formatRemainingTime(withdrawalCooldown)}</p>
+              </div>
+            ) : null}
+
             <div>
               <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Amount (coins)</label>
               <div className="relative">
@@ -245,7 +308,7 @@ export default function Withdrawals() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || withdrawalCooldown !== null}
                   className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 pl-4 text-white focus:outline-none focus:border-yellow-500 transition-colors placeholder-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <span className="absolute right-4 top-3.5 text-xs text-yellow-500 font-bold">COINS</span>
@@ -262,7 +325,7 @@ export default function Withdrawals() {
                 <select
                   value={method}
                   onChange={(e) => setMethod(e.target.value)}
-                  disabled={isSubmitting || paymentMethods.length === 0}
+                  disabled={isSubmitting || paymentMethods.length === 0 || withdrawalCooldown !== null}
                   className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-500 appearance-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {paymentMethods.length === 0 ? (
@@ -287,36 +350,40 @@ export default function Withdrawals() {
                   value={accountNumber}
                   onChange={(e) => setAccountNumber(e.target.value)}
                   placeholder="03001234567 or IBAN"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || withdrawalCooldown !== null}
                   className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-500 placeholder-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
              <div>
-  <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
-    Account Holder Name
-  </label>
-
-  <input
-    type="text"
-    value={accountName}
-    onChange={(e) => setAccountName(e.target.value)}
-    placeholder="Account Name"
-    required
-    disabled={isSubmitting}
-    className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-500 placeholder-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-  />
-</div>
+                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                  Account Holder Name
+                </label>
+                <input
+                  type="text"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="Account Name"
+                  required
+                  disabled={isSubmitting || withdrawalCooldown !== null}
+                  className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-500 placeholder-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
             </div>
 
             <button
               onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-yellow-900/20 mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={isSubmitting || withdrawalCooldown !== null}
+              className={`w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-yellow-900/20 mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${withdrawalCooldown ? 'from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-800' : ''}`}
             >
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
                   Processing...
+                </>
+              ) : withdrawalCooldown ? (
+                <>
+                  <Clock size={18} className="mr-1" />
+                  Limit Reached ({formatRemainingTime(withdrawalCooldown)})
                 </>
               ) : (
                 <>
