@@ -368,7 +368,7 @@ export default function Wallet() {
             <span className="text-6xl font-bold text-yellow-400">{balance}</span>
           </div>
           <p className="text-gray-400 text-sm mb-6">
-            coins â€¢ â‰ˆ {balance} PKR
+            Coins = {balance} PKR
           </p>
           <button 
             onClick={() => openModal()}
