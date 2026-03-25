@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Wallet as WalletIcon, CreditCard, ArrowRight, Star, Flame, Diamond, ArrowDownUp, History, Plus, Coins, CheckCircle, X, AlertCircle, Clock } from 'lucide-react';
-import { Link } from 'react-router-router'; // Corrected import to react-router-dom
+import { Link } from 'react-router-dom'; // CORRECTED: Changed from 'react-router-router'
 import BuyCoinsModal from '../components/BuyCoinsModal';
-import { motion, AnimatePresence } from 'framer-motion'; // Changed from 'motion/react' to 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'; // CORRECTED: Back to 'motion/react'
 import { doc, onSnapshot, updateDoc, increment, addDoc, collection, query, where, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
