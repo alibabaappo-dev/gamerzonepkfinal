@@ -3,7 +3,6 @@ import { ArrowLeft, Wallet as WalletIcon, CreditCard, ArrowRight, Star, Flame, D
 import { Link } from 'react-router-dom';
 import BuyCoinsModal from '../components/BuyCoinsModal';
 import { motion, AnimatePresence } from 'motion/react';
-// OPTIMIZATION: limit aur getDoc add kiye gaye hain
 import { doc, onSnapshot, setDoc, updateDoc, increment, addDoc, collection, query, where, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -27,13 +26,18 @@ interface PaymentMethod {
   imageUrl?: string;
 }
 
-// Helper function to format remaining time for Cooldowns
+// UPDATED: Helper function to format remaining time with seconds
 const formatRemainingTime = (targetTime: number) => {
   const diff = targetTime - Date.now();
   if (diff <= 0) return "Ready";
-  const h = Math.floor(diff / (1000 * 60 * 60));
-  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  return `${h}h ${m}m`;
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  const format = (num: number) => num.toString().padStart(2, '0');
+
+  return `${format(hours)}h ${format(minutes)}m ${format(seconds)}s`;
 };
 
 export default function Wallet() {
@@ -56,7 +60,6 @@ export default function Wallet() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [withdrawalPaymentMethods, setWithdrawalPaymentMethods] = useState<PaymentMethod[]>([]);
 
-  // OPTIMIZATION: Cooldown States
   const [withdrawalCooldown, setWithdrawalCooldown] = useState<number | null>(null);
   const [depositCooldown, setDepositCooldown] = useState<number | null>(null);
 
@@ -99,7 +102,7 @@ export default function Wallet() {
         const data = docSnap.data();
         setBalance(data.walletBalance || 0);
 
-        // 1. Withdrawal Cooldown Check (1 per 24 hours)
+        // Withdrawal Cooldown Check (1 per 24 hours)
         if (data.lastWithdrawalRequestAt) {
           const lastReq = data.lastWithdrawalRequestAt.toDate ? data.lastWithdrawalRequestAt.toDate().getTime() : new Date(data.lastWithdrawalRequestAt).getTime();
           const nextAvailable = lastReq + (24 * 60 * 60 * 1000);
@@ -107,14 +110,16 @@ export default function Wallet() {
           else setWithdrawalCooldown(null);
         }
 
-        // 2. EXACT DEPOSIT COOLDOWN LOGIC (2 requests, then wait 3 hours)
+        // UPDATED: DEPOSIT COOLDOWN LOGIC (2 requests, then wait 2 hours)
         if (data.depositRequests && data.depositRequests.length >= 2) {
           const lastReqTime = data.depositRequests[data.depositRequests.length - 1].toDate ? data.depositRequests[data.depositRequests.length - 1].toDate().getTime() : new Date(data.depositRequests[data.depositRequests.length - 1]).getTime();
-          const nextAvailable = lastReqTime + (3 * 60 * 60 * 1000); // 3 hours from the 2nd request
+          const nextAvailable = lastReqTime + (2 * 60 * 60 * 1000); // CHANGED: 2 hours from the 2nd request
           
           if (Date.now() < nextAvailable) {
             setDepositCooldown(nextAvailable); // Lock the user
           } else {
+            // If 2 hours passed, reset the requests array to allow new ones
+            await updateDoc(userRef, { depositRequests: [] }); // Reset count
             setDepositCooldown(null); // Unlock user
           }
         } else {
@@ -128,7 +133,7 @@ export default function Wallet() {
       collection(db, 'transactions'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc'),
-      limit(3) // CHANGED: Ab sirf 3 transactions show hongi
+      limit(3) 
     );
 
     const unsubscribeTx = onSnapshot(txQuery, (snapshot) => {
@@ -148,12 +153,12 @@ export default function Wallet() {
     };
   }, [user]);
 
-  // Timer to update cooldown display live without reloading
+  // UPDATED: Timer to update cooldown display live every second
   useEffect(() => {
     const timer = setInterval(() => {
       if (withdrawalCooldown) setWithdrawalCooldown(prev => prev && prev > Date.now() ? prev : null);
       if (depositCooldown) setDepositCooldown(prev => prev && prev > Date.now() ? prev : null);
-    }, 60000); 
+    }, 1000); // CHANGED: Update every second for seconds display
     return () => clearInterval(timer);
   }, [withdrawalCooldown, depositCooldown]);
 
@@ -204,11 +209,11 @@ export default function Wallet() {
       const userDoc = await getDoc(userRef);
       let currentRequests = userDoc.data()?.depositRequests || [];
 
-      // Logic: If user already has 2 requests, check if 3 hours passed. If yes, reset to 0.
+      // Logic: If user already has 2 requests, check if 2 hours passed. If yes, reset to 0.
       if (currentRequests.length >= 2) {
         const lastReqTime = currentRequests[currentRequests.length - 1].toDate ? currentRequests[currentRequests.length - 1].toDate().getTime() : new Date(currentRequests[currentRequests.length - 1]).getTime();
-        if (Date.now() >= lastReqTime + (3 * 60 * 60 * 1000)) {
-          currentRequests = []; // 3 hours passed! Reset the count.
+        if (Date.now() >= lastReqTime + (2 * 60 * 60 * 1000)) { // CHANGED: 2 hours check
+          currentRequests = []; // 2 hours passed! Reset the count.
         } else {
           showNotification(`Deposit limit reached. Try again later.`, 'error');
           return;
@@ -339,8 +344,8 @@ export default function Wallet() {
           </motion.div>
         )}
       </AnimatePresence>
-      
-        <div className="max-w-md mx-auto">
+
+      <div className="max-w-md mx-auto">
         <Link to="/" className="flex items-center text-blue-400 mb-6 hover:text-blue-300">
           <ArrowLeft size={20} className="mr-2" />
           <span>Back to Dashboard</span>
@@ -486,6 +491,7 @@ export default function Wallet() {
               <span className="text-orange-500 font-bold">Limits:</span> Min {minWithdrawal} coins Max 1,200 coins per request
             </p>
           </div>
+
           {withdrawalCooldown ? (
              <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-6 text-center mb-4">
                <Clock className="mx-auto text-red-400 mb-3" size={32} />
@@ -559,7 +565,7 @@ export default function Wallet() {
           )}
         </div>
 
-        <div className="bg-[#0B1120] rounded-2xl p-6 border border-gray-800">
+        <div className="bg-[#0B1120] rounded-2xl p-6 mb-8 border border-gray-800">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center">
               <div className="bg-blue-900/30 p-2 rounded-lg mr-3">
