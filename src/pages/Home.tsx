@@ -411,13 +411,13 @@ const handleNextPopup = () => {
               ⚡ Kuch Slots Rehte Hai Join Now !
             </p>
             <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
-              GAMER ZONE — More Matches, More Chances ⚔️🔥
+              GAMER ZONE — JOIN NOW ⚔️🔥
             </p>
           </div>
         </div>
       </EmojiModal>
 
-     {/* Pop-up 2: Watch Video */}
+    {/* Pop-up 2: Watch Video */}
       <EmojiModal 
         isOpen={activePopup === 2} 
         onClose={handleNextPopup}
@@ -425,39 +425,55 @@ const handleNextPopup = () => {
       >
         <div className="space-y-3">
           <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group !</p>
-          <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Link to See !</p>
+          <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Below Link to See !</p>
           <div className="pt-4 border-t border-gray-800">
-            <div className="text-[11px] font-bold text-gray-400 leading-relaxed">
-              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="image" style={{ border: 0 }} /> 
-              <a href="https://www.example.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline ml-1">Click Here !</a>
-              <br />
-              🤑 Jitne zyada join utna zyada profit!
+            {/* Image Icon and Link Row */}
+            <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 leading-relaxed">
+              <img 
+                src="https://i.ibb.co/SDfYyXyx/image.png" 
+                alt="icon" 
+                className="w-5 h-5 object-contain" // Chota icon size set kiya gaya hai
+              /> 
+              <a href="https://vt.tiktok.com/ZSuKtFeFe/" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline"> https://vt.tiktok.com/ZSuKtFeFe/
+              
+              </a>
             </div>
+             <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 leading-relaxed">
+              <img 
+                src="https://i.ibb.co/ycKSV4FH/image.png" 
+                alt="icon" 
+                className="w-5 h-5 object-contain" // Chota icon size set kiya gaya hai
+              /> 
+              <a href="https://youtube.com/shorts/HDdQwuy7xkQ?si=einZafrY4DfRgxZU" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">https://youtube.com/shorts/HDdQwuy7xkQ?si=einZafrY4DfRgxZU
+              
+              </a>
+            </div>
+            
+            
+            
             <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
-              GAMER ZONE — Play & Earn Together 🤑🔥
+              GAMER ZONE — Play & Earn 🤑🔥
             </p>
           </div>
         </div>
       </EmojiModal>
 
-      {/* Pop-up 3: Watch Video */}
+        {/* Pop-up 3: FAKE DEPOSIT */}
       <EmojiModal 
         isOpen={activePopup === 3} 
         onClose={handleNextPopup}
-        title="WATCH FULL VIDEO"
+        title="🚨 BAN ALERT 🚨"
       >
         <div className="space-y-3">
-          <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group !</p>
-          <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Link to See !</p>
+          <p className="text-xs font-bold text-gray-200">⚠️ FAKE DEPOSIT REQUEST CAN BAN YOUR ACCOUNT ! </p>
+          <p className="text-xs font-bold text-gray-200">⚠️ FAKE SUPPORT REQUEST AND SPAM BAN YOUR ACCOUNT ! </p>
           <div className="pt-4 border-t border-gray-800">
-            <div className="text-[11px] font-bold text-gray-400 leading-relaxed">
-              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="image" style={{ border: 0 }} /> 
-              <a href="https://www.example.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline ml-1">Click Here !</a>
-              <br />
-              🤑 Jitne zyada join utna zyada profit!
-            </div>
-            <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
-              GAMER ZONE — Play & Earn Together 🤑🔥
+            <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
+            ⚡ - AVOID FAKE DEPOSIT REQUSET AND SPAM OF DEPOSIT WITH FAKE SCREEN SHOT !<br/>
+            ⚡ - AVOID FAKE AND SPAM OF SUPPORT TICKETS !
+            </p>
+            <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight">
+            🚨  IF YOU DO AGAIN ALSO BAN YOUR MOBILE 🚨
             </p>
           </div>
         </div>
