@@ -69,7 +69,7 @@ const EmojiModal = ({ isOpen, onClose, title, children }) => (
             <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mb-6 border border-orange-500/20">
                <span className="text-3xl">🔔</span>
             </div>
-            <h2 className="text-base font-black text-center text-orange-500 uppercase tracking-tight mb-6">
+            <h2 className="text-base font-black text-center text-yellow-600 uppercase tracking-tight mb-6">
               {title}
             </h2>
             <div className="w-full space-y-4 mb-8 text-left">
@@ -77,7 +77,7 @@ const EmojiModal = ({ isOpen, onClose, title, children }) => (
             </div>
             <button
               onClick={onClose}
-              className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all"
+              className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all"
             >
               OK, Got it
             </button>
@@ -410,7 +410,7 @@ const handleNextPopup = () => {
               💪 Ab Kam Entry Me Zyada Prize !<br/>
               ⚡ Kuch Slots Rehte Hai Join Now !
             </p>
-            <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
+            <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight">
               GAMER ZONE — JOIN NOW ⚔️🔥
             </p>
           </div>
@@ -424,7 +424,7 @@ const handleNextPopup = () => {
         title="WATCH FULL VIDEO"
       >
         <div className="space-y-3">
-          <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group !</p>
+          <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group to Get Latest Updates !</p>
           <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Below Link to See !</p>
           <div className="pt-4 border-t border-gray-800">
             {/* Image Icon and Link Row */}
@@ -434,7 +434,7 @@ const handleNextPopup = () => {
                 alt="icon" 
                 className="w-5 h-5 object-contain" // Chota icon size set kiya gaya hai
               /> 
-              <a href="https://vt.tiktok.com/ZSuKtFeFe/" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline"> https://vt.tiktok.com/ZSuKtFeFe/
+              <a href="https://vt.tiktok.com/ZSuKtFeFe/" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline"> WATCH ON TIKTOK
               
               </a>
             </div>
@@ -444,14 +444,25 @@ const handleNextPopup = () => {
                 alt="icon" 
                 className="w-5 h-5 object-contain" // Chota icon size set kiya gaya hai
               /> 
-              <a href="https://youtube.com/shorts/HDdQwuy7xkQ?si=einZafrY4DfRgxZU" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">https://youtube.com/shorts/HDdQwuy7xkQ?si=einZafrY4DfRgxZU
+              <a href="https://youtube.com/shorts/HDdQwuy7xkQ?si=einZafrY4DfRgxZU" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline"> WATCH ON YOUTUBE
+              
+              </a>
+            </div>
+             </div>
+             <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 leading-relaxed">
+              <img 
+                src="https://i.ibb.co/7tdCbQLq/image.png" 
+                alt="icon" 
+                className="w-6 h-6 object-contain" // Chota icon size set kiya gaya hai
+              /> 
+              <a href="" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline"> JOIN GROUP
               
               </a>
             </div>
             
             
             
-            <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
+            <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight">
               GAMER ZONE — Play & Earn 🤑🔥
             </p>
           </div>
