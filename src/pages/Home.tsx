@@ -1,4 +1,4 @@
-import { Wallet, Trophy, Zap, DollarSign, Star, MessageSquare, User, X, ChevronRight, ArrowRight, Bell, BarChart2, LogOut, Download, Plus, Phone, Check, Loader2, Copy, CheckCircle2, XCircle, Save } from 'lucide-react';
+import { Wallet, Trophy, Zap, DollarSign, Star, MessageSquare, User, X, ChevronRight, ArrowRight, Bell, BarChart2, LogOut, Download, Plus, Phone, Check, Loader2, Copy, CheckCircle2, XCircle, Save, Youtube } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { db, messaging } from '../lib/firebase';
@@ -51,8 +51,43 @@ const NavCard = ({ icon, title }) => (
     </div>
   </Card>
 );
-// --- End of Re-usable Components ---
 
+// --- CUSTOM EMOJI POPUP COMPONENT ---
+const EmojiModal = ({ isOpen, onClose, title, children }) => (
+  <AnimatePresence>
+    {isOpen && (
+      <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          className="bg-[#0D0D0D] border-2 border-orange-500/20 w-full max-w-[340px] rounded-[2rem] overflow-hidden relative shadow-[0_0_50px_rgba(242,125,38,0.15)]"
+        >
+          <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white">
+            <X size={20} />
+          </button>
+          <div className="p-8 pt-10 flex flex-col items-center">
+            <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mb-6 border border-orange-500/20">
+               <span className="text-3xl">🔔</span>
+            </div>
+            <h2 className="text-base font-black text-center text-orange-500 uppercase tracking-tight mb-6">
+              {title}
+            </h2>
+            <div className="w-full space-y-4 mb-8 text-left px-1">
+              {children}
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-orange-500/20"
+            >
+              OK, Got it
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>
+);
 
 export default function Home({ user, onLogout }) {
   // --- State variables ---
@@ -73,10 +108,26 @@ export default function Home({ user, onLogout }) {
   const [isTogglingPush, setIsTogglingPush] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // --- OPTIMIZATION LOCK: This prevents 191M reads ---
+  // OPTIMIZATION: Critical lock to stop the 191M reads infinite loop
   const fetchLock = useRef(false);
 
-  // --- Functions ---
+  // Pop-up logic (Session based)
+  const [activePopup, setActivePopup] = useState(0); 
+
+  useEffect(() => {
+    const hasShown = sessionStorage.getItem('gamerZonePopupsShown');
+    if (!hasShown) {
+      setActivePopup(1);
+      sessionStorage.setItem('gamerZonePopupsShown', 'true');
+    }
+  }, []);
+
+  const handleNextPopup = () => {
+    if (activePopup === 1) setActivePopup(2);
+    else if (activePopup === 2) setActivePopup(3);
+    else setActivePopup(0);
+  };
+
   const handleCopyCode = () => {
     if (!user?.referralCode) return;
     navigator.clipboard.writeText(user.referralCode);
@@ -109,7 +160,6 @@ export default function Home({ user, onLogout }) {
         }
       } catch (error) {
         console.error('Error toggling push notifications:', error);
-        alert(`Failed: ${error.message}`);
       } finally {
         setIsTogglingPush(false);
       }
@@ -151,7 +201,7 @@ export default function Home({ user, onLogout }) {
     return () => unsubscribe();
   }, [user]);
 
-  // OPTIMIZED FETCH (FIXES 191M READS LOOP)
+  // OPTIMIZED FETCH (FIXES 191M READS LOOP + LIMIT 1 ON HOME PAGE)
   useEffect(() => {
     if (!user || fetchLock.current) return;
 
@@ -162,14 +212,12 @@ export default function Home({ user, onLogout }) {
           registrationsSnap,
           ticketsSnap,
           transactionsSnap,
-          leaderboardSnap,
           userNotifsSnap,
           globalNotifsSnap
         ] = await Promise.all([
-          getDocs(query(collection(db, 'registrations'), where('userId', '==', user.uid), limit(50))),
-          getDocs(query(collection(db, 'support_tickets'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(2))),
-          getDocs(query(collection(db, 'transactions'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(3))),
-          getDocs(query(collection(db, 'users'), orderBy('totalWins', 'desc'), limit(100))),
+          getDocs(query(collection(db, 'registrations'), where('userId', '==', user.uid))),
+          getDocs(query(collection(db, 'support_tickets'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(1))),
+          getDocs(query(collection(db, 'transactions'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(1))),
           getDocs(query(collection(db, 'notifications'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(1))),
           getDocs(query(collection(db, 'global_notifications'), orderBy('createdAt', 'desc'), limit(1)))
         ]);
@@ -179,12 +227,10 @@ export default function Home({ user, onLogout }) {
         setRecentTransactions(txData);
         setStats(prev => ({ ...prev, totalEarnings }));
 
-        const topUsers = leaderboardSnap.docs.map(doc => doc.id);
-        setUserRank(topUsers.indexOf(user.uid) + 1 || 0);
         setSupportTickets(ticketsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         
         const combined = [...userNotifsSnap.docs.map(d => ({id: d.id, ...d.data()})), ...globalNotifsSnap.docs.map(d => ({id: d.id, ...d.data()}))];
-        setRecentNotifications(combined.slice(0, 2));
+        setRecentNotifications(combined.slice(0, 1));
 
         // JOINED LOGIC: LIFETIME VS ACTIVE
         const joinedTournamentIds = registrationsSnap.docs.map(doc => doc.data().tournamentId);
@@ -200,13 +246,13 @@ export default function Home({ user, onLogout }) {
             .filter(t => t.status !== 'completed' && t.status !== 'result' && t.status !== 'Result');
             
           setJoinedTournaments(joinedTournamentsData);
-          setStats(prev => ({ ...prev, activeTournaments: joinedTournamentIds.length })); // Lifetime joined matches
+          setStats(prev => ({ ...prev, activeTournaments: joinedTournamentIds.length })); // Lifetime joined matches for Stat card
         } else {
           setJoinedTournaments([]);
           setStats(prev => ({ ...prev, activeTournaments: 0 }));
         }
 
-        fetchLock.current = true; // Lock the fetch
+        fetchLock.current = true; // Lock the fetch to stop infinite reads
       } catch (error) {
         console.error("Dashboard Fetch Error:", error);
       } finally {
@@ -252,13 +298,8 @@ export default function Home({ user, onLogout }) {
               </h1>
             </div>
             
-            
-            
-            
             <div className="flex items-center gap-4">
               {/* Push Notifications First */}
-{/* JOIN TOURNAMENT BUTTON - PC UI (SAME AS NOTIFICATION) */}
-{/* JOIN TOURNAMENT CARD - PC UI (EXACT MATCH TO NOTIFICATION CARD) */}
         <Link to="/tournaments" className="block">
           <div className="bg-[#1C1C1E]/80 backdrop-blur-md border border-gray-800 p-2 pr-4 rounded-2xl flex items-center gap-4 shadow-xl hover:bg-[#252528] transition-all cursor-pointer group">
             {/* Left Icon Box */}
@@ -505,7 +546,7 @@ export default function Home({ user, onLogout }) {
                 </div>
               </div>
 
-              {/* Recent Transactions */}
+              {/* Recent Transaction */}
               <div className="bg-[#1C1C1E] rounded-3xl border border-gray-800 overflow-hidden shadow-2xl">
                 <div className="p-8 border-b border-gray-800/50 flex justify-between items-center bg-[#1F1F22]/50">
                   <div className="flex items-center space-x-4">
@@ -513,8 +554,8 @@ export default function Home({ user, onLogout }) {
                       <BarChart2 className="text-blue-400" size={20} />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-white">Recent Transactions</h2>
-                      <p className="text-xs text-gray-500 font-medium mt-0.5">Your financial history</p>
+                      <h2 className="text-xl font-bold text-white">Recent Transaction</h2>
+                      <p className="text-xs text-gray-500 font-medium mt-0.5">Your latest transaction</p>
                     </div>
                   </div>
                   <Link to="/transactions" className="text-blue-400 text-sm font-bold flex items-center hover:text-blue-300 transition-colors bg-blue-400/10 px-4 py-2 rounded-xl hover:bg-blue-400/20">
@@ -552,7 +593,7 @@ export default function Home({ user, onLogout }) {
                     </div>
                   ) : (
                     <div className="text-center py-12 bg-[#252528]/50 rounded-2xl border border-dashed border-gray-800">
-                      <p className="text-gray-500 font-medium">No recent transactions found</p>
+                      <p className="text-gray-500 font-medium">No transactions found</p>
                     </div>
                   )}
                 </div>
@@ -576,7 +617,7 @@ export default function Home({ user, onLogout }) {
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <div className="bg-[#252528] p-5 rounded-2xl border border-gray-700/50 hover:border-yellow-400/30 transition-colors group">
                       <p className="text-3xl font-black text-white group-hover:text-yellow-400 transition-colors">{stats.activeTournaments}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Tournaments</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Joined</p>
                     </div>
                     <div className="bg-[#252528] p-5 rounded-2xl border border-gray-700/50 hover:border-green-400/30 transition-colors group">
                       <p className="text-3xl font-black text-white group-hover:text-green-400 transition-colors">{stats.totalWins}</p>
@@ -619,9 +660,7 @@ export default function Home({ user, onLogout }) {
                       <div key={notif.id} className="bg-[#252528] p-4 rounded-2xl border border-gray-700/30 hover:bg-[#2A2A2D] transition-colors cursor-pointer group">
                         <div className="flex justify-between items-start mb-2">
                           <span className={`w-2 h-2 rounded-full mt-1.5 ${notif.isRead ? 'bg-gray-600' : 'bg-yellow-400'}`}></span>
-                          <p className="text-[10px] text-gray-500 font-medium">
-                            {notif.createdAt?.toDate ? notif.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
-                          </p>
+                          <p className="text-[10px] text-gray-500 font-medium">Just now</p>
                         </div>
                         <p className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors pl-4 line-clamp-1">{notif.title}</p>
                         <p className="text-xs text-gray-500 pl-4 mt-1 line-clamp-1">{notif.message}</p>
@@ -629,7 +668,7 @@ export default function Home({ user, onLogout }) {
                     ))
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-gray-500 text-xs">No recent notifications</p>
+                      <p className="text-gray-500 text-xs">No notifications</p>
                     </div>
                   )}
                 </div>
@@ -647,14 +686,9 @@ export default function Home({ user, onLogout }) {
                 </div>
                 <div className="p-8 text-center relative z-10">
                   <div className="inline-block relative">
-                    <p className="text-6xl font-black text-white mb-2 tracking-tighter drop-shadow-lg">#{userRank || '?'}</p>
-                    {userRank > 0 && userRank <= 100 && (
-                      <div className="absolute -top-4 -right-6 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide animate-bounce">
-                        Top 100
-                      </div>
-                    )}
+                    <p className="text-6xl font-black text-white mb-2 tracking-tighter drop-shadow-lg">#?</p>
                   </div>
-                  <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-8">Current Rank</p>
+                  <p className="text-xs text-gray-500 uppercase font-bold mb-8">Current Rank</p>
                   
                   <Link to="/leaderboard" className="block bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 rounded-2xl w-full transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:-translate-y-0.5 text-center">
                     View Full Rankings
@@ -695,7 +729,7 @@ export default function Home({ user, onLogout }) {
                     ))
                   ) : (
                     <div className="text-center py-6">
-                      <p className="text-gray-500 text-sm font-medium">No recent support requests</p>
+                      <p className="text-gray-500 text-sm font-medium">No support requests</p>
                     </div>
                   )}
                   <Link to="/support" className="block w-full bg-[#252528] text-center text-gray-300 hover:text-white font-bold py-3 rounded-xl hover:bg-gray-700 transition-colors mt-2 text-sm border border-gray-700/50">
@@ -758,7 +792,7 @@ export default function Home({ user, onLogout }) {
             icon={<Trophy size={20} className="text-green-400" />} 
             title="Total Wins" 
             value={stats.totalWins} 
-            subtitle="matches" 
+            subtitle="macthes" 
             color="green"
             trendIcon={<BarChart2 size={16} className="text-gray-500" />}
           />
@@ -766,7 +800,7 @@ export default function Home({ user, onLogout }) {
             icon={<Zap size={20} className="text-blue-400" />} 
             title="Total Joined" 
             value={stats.activeTournaments} 
-            subtitle="all-time history" 
+            subtitle="lifetime history" 
             color="blue"
             trendIcon={<Zap size={16} className="text-blue-400" />}
           />
@@ -802,7 +836,7 @@ export default function Home({ user, onLogout }) {
             
             <div className="space-y-4">
               {joinedTournaments.map((tournament) => (
-                <div key={tournament.id} className="bg-[#1C1C1E] p-4 rounded-xl border border-gray-700">
+                <div key={tournament.id} className="bg-[#1C1C1E] p-4 rounded-xl border border-gray-700 shadow-lg">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-white text-sm">{tournament.name}</h3>
                     <span className="text-green-400 text-xs font-bold">Prize {tournament.prizePool} coins</span>
@@ -824,7 +858,7 @@ export default function Home({ user, onLogout }) {
         )}
           <Card className="mb-6 border-green-400/40">
            <div className="flex justify-between items-center mb-4">
-            <h2 className="font-bold text-lg">Recent Transactions</h2>
+            <h2 className="font-bold text-lg">Recent Transaction</h2>
             <Link to="/transactions" className="text-yellow-400 text-sm font-semibold flex items-center">View All <ChevronRight size={16} /></Link>
           </div>
           <div className="space-y-4">
@@ -850,7 +884,7 @@ export default function Home({ user, onLogout }) {
               ))
             ) : (
               <div className="text-center py-4">
-                <p className="text-gray-500 text-xs">No recent transactions</p>
+                <p className="text-gray-500 text-xs">No transactions</p>
               </div>
             )}
           </div>
@@ -897,7 +931,7 @@ export default function Home({ user, onLogout }) {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-xs">No recent notifications</p>
+                  <p className="text-gray-500 text-xs">No notifications</p>
                 )}
             </div>
         </Card>
@@ -911,8 +945,8 @@ export default function Home({ user, onLogout }) {
                 <Link to="/leaderboard" className="text-purple-400 text-sm font-semibold flex items-center">View All <ChevronRight size={16} /></Link>
             </div>
             <div className="text-center">
-                <p className="text-4xl font-bold text-purple-400">#{userRank || '?'}</p>
-                <p className="text-sm text-gray-400 mb-4">Current Rank</p>
+                <p className="text-4xl font-bold text-purple-400">#?</p>
+                <p className="text-sm text-gray-400 mb-4 tracking-widest uppercase font-bold">Current Rank</p>
                 <div className="flex justify-around items-center mb-4">
                     <div>
                         <p className="text-2xl font-bold">{stats.totalWins}</p>
@@ -923,7 +957,7 @@ export default function Home({ user, onLogout }) {
                         <p className="text-xs text-gray-500">Streak</p>
                     </div>
                 </div>
-                <Link to="/leaderboard" className="block bg-purple-500/80 text-white font-bold py-2.5 px-6 rounded-lg w-full text-center">View Rankings</Link>
+                <Link to="/leaderboard" className="block bg-purple-500/80 text-white font-bold py-2.5 px-6 rounded-lg w-full text-center shadow-lg">View Rankings</Link>
             </div>
         </Card>
 
@@ -959,10 +993,10 @@ export default function Home({ user, onLogout }) {
                   ))
                 ) : (
                   <div className="text-center py-2">
-                    <p className="text-gray-500 text-[10px]">No recent support requests</p>
+                    <p className="text-gray-500 text-[10px]">No support requests</p>
                   </div>
                 )}
-                <Link to="/support" className="block w-full bg-[#252528] text-center text-gray-300 hover:text-white font-bold py-3 rounded-xl hover:bg-gray-700 transition-colors mt-2 text-sm border border-gray-700/50">
+                <Link to="/support" className="block w-full bg-[#252528] text-center text-gray-300 hover:text-white font-bold py-3 rounded-xl hover:bg-gray-700 transition-colors mt-2 text-sm border border-gray-700/50 shadow-md">
                     Create New Request
                   </Link>
             </div>
@@ -970,148 +1004,70 @@ export default function Home({ user, onLogout }) {
 
       </div>
 
-      {/* Install Prompt (UNTOUCHED) */}
-      <AnimatePresence>
-        {showInstallPrompt && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-6 left-4 right-4 z-[100] lg:left-auto lg:right-6 lg:w-96"
-          >
-            <div className="bg-gradient-to-r from-[#F27D26] to-[#F7B733] rounded-2xl p-5 shadow-2xl relative overflow-hidden">
-              <div className="flex items-start gap-4">
-                <div className="bg-black/10 p-2 rounded-xl">
-                  <Download size={24} className="text-black" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-black font-extrabold text-lg leading-tight mb-1">Install Gamer Zone</h3>
-                  <p className="text-black/80 text-sm font-medium leading-tight mb-4">
-                    Add to your home screen for quick access!
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => setShowInstructions(true)}
-                      className="flex-1 bg-black text-yellow-400 font-bold py-3 rounded-xl text-sm hover:bg-black/90 transition-colors"
-                    >
-                      Show Instructions
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setShowInstallPrompt(false);
-                        localStorage.setItem('installPromptDismissedAt', Date.now().toString());
-                      }}
-                      className="bg-[#E67E22] text-black p-3 rounded-xl hover:bg-[#D35400] transition-colors"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* SEQUENTIAL POPUPS */}
+      <EmojiModal 
+        isOpen={activePopup === 1} 
+        onClose={handleNextPopup}
+        title="⚡ NEW MATCHES ADDED ✅"
+      >
+        <div className="space-y-3">
+          <p className="text-xs font-bold text-gray-200 px-1 leading-relaxed">🔥 BR SURVIVAL — LOW ENTRY</p>
+          <p className="text-xs font-bold text-gray-200 px-1 leading-relaxed">🔥 Check Now New Tournaments</p>
+          <div className="pt-4 border-t border-gray-800 px-1">
+            <p className="text-[11px] font-bold text-gray-400 leading-relaxed">💪 Ab Kam Entry Me Zyada Prize !<br />⚡ Kuch Slots Rehte Hai Join Now !</p>
+            <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight text-center">GAMER ZONE — JOIN NOW ⚔️🔥</p>
+          </div>
+        </div>
+      </EmojiModal>
+
+      <EmojiModal 
+        isOpen={activePopup === 2} 
+        onClose={handleNextPopup}
+        title="WATCH FULL VIDEO"
+      >
+        <div className="space-y-4 px-1">
+          <p className="text-[10px] font-bold text-gray-200 leading-relaxed">🚀 Watch Guide On Youtube, Tiktok & Join WhatsApp Group!</p>
+          <div className="space-y-3 pt-4 border-t border-gray-800">
+            <div className="flex items-center gap-2 text-[10px] font-black"><img src="https://i.ibb.co/SDfYyXyx/image.png" className="w-5 h-5 object-contain" alt="t" /><a href="https://vt.tiktok.com/ZSuKtFeFe/" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline uppercase">WATCH ON TIKTOK</a></div>
+            <div className="flex items-center gap-2 text-[10px] font-black"><img src="https://i.ibb.co/ycKSV4FH/image.png" className="w-5 h-5 object-contain" alt="y" /><a href="https://www.youtube.com/@ZahidFF" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline uppercase tracking-tighter">WATCH ON YOUTUBE</a></div>
+          </div>
+          <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight text-center pt-2">GAMER ZONE — Play & Earn Together 🤑🔥</p>
+        </div>
+      </EmojiModal>
+
+      <EmojiModal 
+        isOpen={activePopup === 3} 
+        onClose={handleNextPopup}
+        title="🚨 BAN ALERT 🚨"
+      >
+        <div className="space-y-3 text-xs font-bold text-red-500 px-1">
+          <p>⚠️ FAKE DEPOSIT REQUEST = BAN!</p>
+          <p>⚠️ SPAM TICKETS = DEVICE BAN!</p>
+          <div className="pt-4 border-t border-gray-800"><p className="text-[11px] font-bold text-gray-400 leading-relaxed text-center">Avoid fake screenshots & spamming!<br />🚨 Repeat offenders will be device banned!</p><p className="text-[10px] mt-4 text-yellow-400 font-black uppercase text-center tracking-widest">🚨 NO SECOND CHANCES 🚨</p></div>
+        </div>
+      </EmojiModal>
 
       {/* Mandatory Profile Completion Modal (UNTOUCHED) */}
       <AnimatePresence>
         {showProfileModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xl">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              className="bg-[#1C1C1E]/80 w-full max-w-[280px] rounded-[2rem] border border-gray-800/50 shadow-2xl overflow-hidden"
-            >
-              <div className="p-6">
-                <div className="flex flex-col items-center text-center mb-5">
-                  <div className="w-14 h-14 bg-yellow-400/10 rounded-2xl flex items-center justify-center mb-3 border border-yellow-400/20">
-                    <User size={28} className="text-yellow-400" />
-                  </div>
-                  <h2 className="text-lg font-black text-white uppercase tracking-tight">Profile Setup</h2>
-                  <p className="text-gray-500 text-[10px] mt-1 font-medium">
-                    Complete your profile to continue.
-                  </p>
-                </div>
-
-                <form 
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!profileUsername.trim() || profilePhone.length !== 10) return;
-                    
-                    try {
-                      setIsUpdatingProfile(true);
-                      await updateDoc(doc(db, 'users', user.uid), {
-                        username: profileUsername.trim(),
-                        phoneNumber: '+92' + profilePhone.trim()
-                      });
-                      setShowProfileModal(false);
-                    } catch (err) {
-                      console.error('Error updating profile:', err);
-                    } finally {
-                      setIsUpdatingProfile(false);
-                    }
-                  }}
-                  className="space-y-3.5"
-                >
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-black uppercase tracking-widest text-gray-500 ml-1">Username</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 group-focus-within:text-yellow-400 transition-colors">
-                        <User size={14} />
-                      </div>
-                      <input
-                        type="text"
-                        required
-                        value={profileUsername}
-                        onChange={(e) => setProfileUsername(e.target.value)}
-                        placeholder="Username"
-                        className="w-full bg-black/40 border border-gray-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:border-yellow-400 outline-none transition-all font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-black uppercase tracking-widest text-gray-500 ml-1">Phone Number</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-[10px] font-black text-yellow-400">+92</span>
-                      </div>
-                      <input
-                        type="tel"
-                        required
-                        maxLength={10}
-                        value={profilePhone}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '');
-                          if (val.length <= 10) setProfilePhone(val);
-                        }}
-                        placeholder="3001234567"
-                        className="w-full bg-black/40 border border-gray-800 rounded-xl pl-11 pr-3 py-2.5 text-xs text-white focus:border-yellow-400 outline-none transition-all font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isUpdatingProfile || !profileUsername.trim() || profilePhone.length !== 10}
-                    className="w-full bg-yellow-400 hover:bg-yellow-500 disabled:opacity-30 text-black font-black py-3.5 rounded-xl text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-yellow-400/10 flex items-center justify-center gap-2 mt-2"
-                  >
-                    {isUpdatingProfile ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <>
-                        <Check size={14} /> Save & Continue
-                      </>
-                    )}
-                  </button>
+          <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
+             <div className="bg-[#1C1C1E] p-8 rounded-[2.5rem] w-full max-w-sm border border-gray-800 text-center shadow-2xl">
+                <h2 className="text-2xl font-black mb-6 uppercase tracking-tight">Complete Profile</h2>
+                <form onSubmit={async (e) => {
+                   e.preventDefault();
+                   if (profilePhone.length !== 10) return;
+                   setIsUpdatingProfile(true);
+                   await updateDoc(doc(db, 'users', user.uid), { username: profileUsername, phoneNumber: '+92' + profilePhone });
+                   setShowProfileModal(false);
+                }} className="space-y-4">
+                  <input className="w-full bg-black border border-gray-800 p-4 rounded-2xl font-bold text-sm text-white focus:border-yellow-400 outline-none" placeholder="Username" value={profileUsername} onChange={e => setProfileUsername(e.target.value)} required />
+                  <input className="w-full bg-black border border-gray-800 p-4 rounded-2xl font-bold text-sm text-white focus:border-yellow-400 outline-none" placeholder="Phone 3001234567" maxLength={10} value={profilePhone} onChange={e => setProfilePhone(e.target.value)} required />
+                  <button type="submit" disabled={isUpdatingProfile} className="w-full bg-yellow-400 text-black font-black py-4 rounded-2xl shadow-lg mt-2 uppercase tracking-widest">{isUpdatingProfile ? 'Saving...' : 'Save & Continue'}</button>
                 </form>
-              </div>
-            </motion.div>
+             </div>
           </div>
         )}
       </AnimatePresence>
-
-      
     </div>
   );
 }
