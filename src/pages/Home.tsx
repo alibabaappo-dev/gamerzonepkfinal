@@ -394,9 +394,9 @@ const handleNextPopup = () => {
         <Card className="border-red-600/80"><div className="flex justify-between items-center mb-4"><div className="flex items-center space-x-3"><MessageSquare size={20} className="text-red-400" /><h2 className="font-bold text-lg">Support Requests</h2></div><Link to="/support" className="text-red-400 text-sm font-semibold flex items-center">View All <ChevronRight size={16} /></Link></div><div className="space-y-3">{supportTickets.length > 0 ? (supportTickets.map((req) => (<div key={req.id} className="bg-[#1C1C1E] p-4 rounded-xl border border-gray-700 flex justify-between items-center"><div className="flex items-center space-x-3"><div className="bg-red-900/20 p-2 rounded-lg"><MessageSquare className="text-red-400" size={16} /></div><div><p className="font-bold text-white text-sm">{req.subject}</p><p className="text-gray-500 text-[10px]">TICKET #{req.id.slice(-4)}</p></div></div><span className={`text-[10px] font-bold px-2 py-1 rounded ${req.status === 'Pending' ? 'bg-yellow-400/10 text-yellow-400' : req.status === 'Solved' ? 'bg-green-400/10 text-green-400' : 'bg-blue-400/10 text-blue-400'}`}>{req.status}</span></div>))) : (<div className="text-center py-2"><p className="text-gray-500 text-[10px]">No recent support requests</p></div>)}<Link to="/support" className="block w-full bg-red-500/10 text-red-400 text-center text-xs font-bold py-3 rounded-lg border border-red-500/30 mt-2">Create New Request</Link></div></Card>
       </div>
 
-      {/* SEQUENTIAL EMOJI POPUPS */}
+     {/* SEQUENTIAL EMOJI POPUPS */}
       
-      {/* Pop-up 1: Based on Image */}
+      {/* Pop-up 1: Matches Alert */}
       <EmojiModal 
         isOpen={activePopup === 1} 
         onClose={handleNextPopup}
@@ -407,7 +407,7 @@ const handleNextPopup = () => {
           <p className="text-xs font-bold text-gray-200">🔥 Check Now New Tournaments</p>
           <div className="pt-4 border-t border-gray-800">
             <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
-              💪 Ab Kam Entry Me Zyada Prize !<br/>
+              💪 Ab Kam Entry Me Zyada Prize !<br />
               ⚡ Kuch Slots Rehte Hai Join Now !
             </p>
             <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight">
@@ -417,59 +417,49 @@ const handleNextPopup = () => {
         </div>
       </EmojiModal>
 
-    {/* Pop-up 2: Watch Video */}
+      {/* Pop-up 2: Watch Video (TikTok, YouTube, WhatsApp) */}
       <EmojiModal 
         isOpen={activePopup === 2} 
         onClose={handleNextPopup}
         title="WATCH FULL VIDEO"
       >
         <div className="space-y-3">
-          <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group to Get Latest Updates !</p>
-          <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Below Link to See !</p>
-          <div className="pt-4 border-t border-gray-800">
-            {/* Image Icon and Link Row */}
-            <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 leading-relaxed">
-              <img 
-                src="https://i.ibb.co/SDfYyXyx/image.png" 
-                alt="icon" 
-                className="w-5 h-5 object-contain" // Chota icon size set kiya gaya hai
-              /> 
-              <a href="https://vt.tiktok.com/ZSuKtFeFe/" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline"> WATCH ON TIKTOK
-              
+          <p className="text-xs font-bold text-gray-200 px-1">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group to Get Latest Updates !</p>
+          <p className="text-xs font-bold text-gray-200 px-1">🔥 Search Zahid FF or Click Below Link to See !</p>
+          
+          <div className="pt-4 border-t border-gray-800 space-y-3">
+            {/* TikTok Link */}
+            <div className="flex items-center gap-2 text-[10px] font-black leading-relaxed">
+              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="icon" className="w-5 h-5 object-contain" /> 
+              <a href="https://vt.tiktok.com/ZSuKtFeFe/" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline uppercase tracking-tight">
+                WATCH ON TIKTOK
               </a>
             </div>
-             <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 leading-relaxed">
-              <img 
-                src="https://i.ibb.co/ycKSV4FH/image.png" 
-                alt="icon" 
-                className="w-5 h-5 object-contain" // Chota icon size set kiya gaya hai
-              /> 
-              <a href="https://youtube.com/shorts/HDdQwuy7xkQ?si=einZafrY4DfRgxZU" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline"> WATCH ON YOUTUBE
-              
+
+            {/* YouTube Link */}
+            <div className="flex items-center gap-2 text-[10px] font-black leading-relaxed">
+              <img src="https://i.ibb.co/ycKSV4FH/image.png" alt="icon" className="w-5 h-5 object-contain" /> 
+              <a href="https://www.youtube.com/@ZahidFF" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline uppercase tracking-tight">
+                WATCH ON YOUTUBE
               </a>
             </div>
-            
-             <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 leading-relaxed">
-              <img 
-                src="https://i.ibb.co/7tdCbQLq/image.png" 
-                alt="icon" 
-                className="w-6 h-6 object-contain" // Chota icon size set kiya gaya hai
-              /> 
-              <a href="" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline"> JOIN GROUP
-              
+
+            {/* WhatsApp Link */}
+            <div className="flex items-center gap-2 text-[10px] font-black leading-relaxed">
+              <img src="https://i.ibb.co/7tdCbQLq/image.png" alt="icon" className="w-6 h-6 object-contain" /> 
+              <a href="https://chat.whatsapp.com/YOUR_GROUP_LINK" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline uppercase tracking-tight">
+                JOIN GROUP
               </a>
             </div>
-            
-            
-             </div>
-            <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight">
+
+            <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight pt-2">
               GAMER ZONE — Play & Earn 🤑🔥
             </p>
           </div>
         </div>
       </EmojiModal>
 
-        {/* Pop-up 3: FAKE DEPOSIT */}
+      {/* Pop-up 3: Ban Alert */}
       <EmojiModal 
         isOpen={activePopup === 3} 
         onClose={handleNextPopup}
@@ -480,16 +470,17 @@ const handleNextPopup = () => {
           <p className="text-xs font-bold text-gray-200">⚠️ FAKE SUPPORT REQUEST AND SPAM BAN YOUR ACCOUNT ! </p>
           <div className="pt-4 border-t border-gray-800">
             <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
-            ⚡ - AVOID FAKE DEPOSIT REQUSET AND SPAM OF DEPOSIT WITH FAKE SCREEN SHOT !<br/>
-            ⚡ - AVOID FAKE AND SPAM OF SUPPORT TICKETS !
+              ⚡ - AVOID FAKE DEPOSIT REQUSET AND SPAM OF DEPOSIT WITH FAKE SCREEN SHOT !<br />
+              ⚡ - AVOID FAKE AND SPAM OF SUPPORT TICKETS !
             </p>
             <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight">
-            🚨  IF YOU DO AGAIN ALSO BAN YOUR MOBILE 🚨
+              🚨 IF YOU DO AGAIN ALSO BAN YOUR MOBILE 🚨
             </p>
           </div>
         </div>
       </EmojiModal>
 
+      
       {/* Existing Modals */}
       <AnimatePresence>
         {showInstallPrompt && (
