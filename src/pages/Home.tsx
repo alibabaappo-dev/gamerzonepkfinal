@@ -448,7 +448,7 @@ const handleNextPopup = () => {
               
               </a>
             </div>
-             </div>
+            
              <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 leading-relaxed">
               <img 
                 src="https://i.ibb.co/7tdCbQLq/image.png" 
@@ -461,7 +461,7 @@ const handleNextPopup = () => {
             </div>
             
             
-            
+             </div>
             <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight">
               GAMER ZONE — Play & Earn 🤑🔥
             </p>
