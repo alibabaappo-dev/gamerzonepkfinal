@@ -108,10 +108,12 @@ export default function Home({ user, onLogout }) {
 
   // Pop-up Sequence Logic (1 -> 2 -> 0)
   const [activePopup, setActivePopup] = useState(1); 
-  const handleNextPopup = () => {
-    if (activePopup === 1) setActivePopup(2);
-    else setActivePopup(0);
-  };
+ // Pehle ye 2 tak tha, ab 3 tak jayega
+const handleNextPopup = () => {
+  if (activePopup === 1) setActivePopup(2);      // 1 se 2 par jao
+  else if (activePopup === 2) setActivePopup(3); // 2 se 3 par jao (NEW)
+  else setActivePopup(0);                        // 3 ke baad close kar do
+};
 
   const handleCopyCode = () => {
     if (!user?.referralCode) return;
@@ -398,18 +400,18 @@ export default function Home({ user, onLogout }) {
       <EmojiModal 
         isOpen={activePopup === 1} 
         onClose={handleNextPopup}
-        title="⚡ NEW TOURNAMENTS ADDED ✅"
+        title="⚡ NEW MATCHES ADDED ✅"
       >
         <div className="space-y-3">
           <p className="text-xs font-bold text-gray-200">🔥 BR SURVIVAL — LOW ENTRY</p>
-          <p className="text-xs font-bold text-gray-200">🔥 BR PER KILL — LOW ENTRY</p>
+          <p className="text-xs font-bold text-gray-200">🔥 Check Now New Tournaments</p>
           <div className="pt-4 border-t border-gray-800">
             <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
-              💪 Ab kam entry me zyada action!<br/>
-              ⚡ Sab players join kar sakte hain — hurry up!
+              💪 Ab Kam Entry Me Zyada Prize !<br/>
+              ⚡ Kuch Slots Rehte Hai Join Now !
             </p>
             <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
-              SJ BATTLE — More Matches, More Chances ⚔️🔥
+              GAMER ZONE — More Matches, More Chances ⚔️🔥
             </p>
           </div>
         </div>
@@ -419,14 +421,35 @@ export default function Home({ user, onLogout }) {
       <EmojiModal 
         isOpen={activePopup === 2} 
         onClose={handleNextPopup}
-        title="🎁 MEGA REFERRAL UPDATE 🎁"
+        title="WATCH FULL VIDEO "
       >
         <div className="space-y-3">
-          <p className="text-xs font-bold text-gray-200">💰 Earn 50 Coins instantly</p>
-          <p className="text-xs font-bold text-gray-200">🚀 Share with your friends now</p>
+          <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group !</p>
+          <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Link to See !</p>
           <div className="pt-4 border-t border-gray-800">
             <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
-              🤝 Referral system is now live for all!<br/>
+              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="image" border="0"> <a href="https://www.example.com">Click Here !</a><br/>
+              🤑 Jitne zyada join utna zyada profit!
+            </p>
+            <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
+              GAMER ZONE — Play & Earn Together 🤑🔥
+            </p>
+          </div>
+        </div>
+      </EmojiModal>
+
+          {/* Pop-up 3: Bonus Offer */}
+      <EmojiModal 
+        isOpen={activePopup === 3} 
+        onClose={handleNextPopup}
+        title="WATCH FULL VIDEO "
+      >
+        <div className="space-y-3">
+          <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group !</p>
+          <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Link to See !</p>
+          <div className="pt-4 border-t border-gray-800">
+            <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
+              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="image" border="0"> <a href="https://www.example.com">Click Here !</a><br/>
               🤑 Jitne zyada join utna zyada profit!
             </p>
             <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
