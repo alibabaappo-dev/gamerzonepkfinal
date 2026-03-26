@@ -417,20 +417,22 @@ const handleNextPopup = () => {
         </div>
       </EmojiModal>
 
-      {/* Pop-up 2: Bonus Offer */}
+     {/* Pop-up 2: Watch Video */}
       <EmojiModal 
         isOpen={activePopup === 2} 
         onClose={handleNextPopup}
-        title="WATCH FULL VIDEO "
+        title="WATCH FULL VIDEO"
       >
         <div className="space-y-3">
           <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group !</p>
           <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Link to See !</p>
           <div className="pt-4 border-t border-gray-800">
-            <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
-              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="image" border="0"> <a href="https://www.example.com">Click Here !</a><br/>
+            <div className="text-[11px] font-bold text-gray-400 leading-relaxed">
+              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="image" style={{ border: 0 }} /> 
+              <a href="https://www.example.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline ml-1">Click Here !</a>
+              <br />
               🤑 Jitne zyada join utna zyada profit!
-            </p>
+            </div>
             <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
               GAMER ZONE — Play & Earn Together 🤑🔥
             </p>
@@ -438,20 +440,22 @@ const handleNextPopup = () => {
         </div>
       </EmojiModal>
 
-          {/* Pop-up 3: Bonus Offer */}
+      {/* Pop-up 3: Watch Video */}
       <EmojiModal 
         isOpen={activePopup === 3} 
         onClose={handleNextPopup}
-        title="WATCH FULL VIDEO "
+        title="WATCH FULL VIDEO"
       >
         <div className="space-y-3">
           <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group !</p>
           <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Link to See !</p>
           <div className="pt-4 border-t border-gray-800">
-            <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
-              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="image" border="0"> <a href="https://www.example.com">Click Here !</a><br/>
+            <div className="text-[11px] font-bold text-gray-400 leading-relaxed">
+              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="image" style={{ border: 0 }} /> 
+              <a href="https://www.example.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline ml-1">Click Here !</a>
+              <br />
               🤑 Jitne zyada join utna zyada profit!
-            </p>
+            </div>
             <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight">
               GAMER ZONE — Play & Earn Together 🤑🔥
             </p>
