@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, MessageSquare, X, ChevronDown, AlertCircle, CheckCircle, ArrowLeft, User, ArrowUpRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../lib/firebase';
 import { collection, addDoc, query, where, onSnapshot, serverTimestamp, orderBy, updateDoc, doc } from 'firebase/firestore';
 
@@ -47,8 +47,7 @@ export default function Support({ user }: SupportProps) {
   });
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -65,10 +64,10 @@ export default function Support({ user }: SupportProps) {
         ...doc.data()
       })) as Ticket[];
       
-      // Sort client-side to avoid index requirement
+      // Sort client-side: Latest first
       ticketsData.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
         return timeB - timeA;
       });
       
@@ -78,18 +77,6 @@ export default function Support({ user }: SupportProps) {
 
     return () => unsubscribe();
   }, [user]);
-
-  // Reset unread count when ticket is selected
-  useEffect(() => {
-    if (selectedTicketId) {
-      const ticket = tickets.find(t => t.id === selectedTicketId);
-      if (ticket && ticket.userUnreadCount && ticket.userUnreadCount > 0) {
-        updateDoc(doc(db, 'support_tickets', selectedTicketId), {
-          userUnreadCount: 0
-        });
-      }
-    }
-  }, [selectedTicketId, tickets]);
 
   const categories = [
     'Payment Issues',
@@ -101,10 +88,28 @@ export default function Support({ user }: SupportProps) {
 
   const handleCreateRequest = async () => {
     if (!formData.subject || !formData.category || !formData.message) {
+      setToastType('error');
       setToastMessage('Please fill in all required fields');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       return;
+    }
+
+    // --- 24 HOUR LIMIT CHECK ---
+    const lastTicket = tickets[0]; // Latest ticket because we sorted desc
+    if (lastTicket && lastTicket.createdAt) {
+        const lastTicketTime = lastTicket.createdAt.toMillis();
+        const currentTime = Date.now();
+        const diffInHours = (currentTime - lastTicketTime) / (1000 * 60 * 60);
+
+        if (diffInHours < 24) {
+            const hoursLeft = Math.ceil(24 - diffInHours);
+            setToastType('error');
+            setToastMessage(`Please wait ${hoursLeft} more hours before sending another request.`);
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 3000);
+            return;
+        }
     }
 
     setIsSubmitting(true);
@@ -116,7 +121,7 @@ export default function Support({ user }: SupportProps) {
         subject: formData.subject,
         lastMessage: formData.message,
         category: formData.category,
-        status: 'Pending', // Default to Pending
+        status: 'Pending',
         messageCount: 1,
         date: now.toLocaleString(),
         createdAt: serverTimestamp(),
@@ -137,11 +142,13 @@ export default function Support({ user }: SupportProps) {
       setIsModalOpen(false);
       setFormData({ subject: '', category: '', priority: 'Medium', message: '' });
       
+      setToastType('success');
       setToastMessage('Support request created successfully');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (error) {
       console.error("Error creating ticket:", error);
+      setToastType('error');
       setToastMessage('Failed to create support request');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -149,8 +156,6 @@ export default function Support({ user }: SupportProps) {
       setIsSubmitting(false);
     }
   };
-
-  const selectedTicket = tickets.find(t => t.id === selectedTicketId);
 
   return (
     <div className="min-h-screen bg-[#050B14] text-white p-4 font-sans relative">
@@ -160,9 +165,11 @@ export default function Support({ user }: SupportProps) {
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="fixed top-4 left-4 right-4 z-50 bg-green-900/90 border border-green-500 text-white p-4 rounded-xl shadow-lg flex items-start"
+            className={`fixed top-4 left-4 right-4 z-50 border p-4 rounded-xl shadow-lg flex items-start ${
+                toastType === 'success' ? 'bg-green-900/90 border-green-500' : 'bg-red-900/90 border-red-500'
+            }`}
           >
-            <CheckCircle className="text-green-400 mr-3 mt-0.5 flex-shrink-0" size={20} />
+            {toastType === 'success' ? <CheckCircle className="text-green-400 mr-3 mt-0.5 flex-shrink-0" size={20} /> : <AlertCircle className="text-red-400 mr-3 mt-0.5 flex-shrink-0" size={20} />}
             <div className="flex-1">
               <p className="font-medium text-sm">{toastMessage}</p>
             </div>
@@ -200,22 +207,11 @@ export default function Support({ user }: SupportProps) {
             tickets.map((ticket) => (
               <div 
                 key={ticket.id} 
-                onClick={() => setSelectedTicketId(ticket.id)}
-                className={`bg-[#131B2F] rounded-2xl p-4 border cursor-pointer transition-all group ${
-                  selectedTicketId === ticket.id 
-                    ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.1)] bg-[#1E293B]' 
-                    : 'border-gray-800 hover:border-gray-700 hover:bg-[#1E293B]'
-                }`}
+                className="bg-[#131B2F] rounded-2xl p-4 border border-gray-800 transition-all"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
-                    {ticket.status === 'Open' && <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                     <h3 className="font-bold text-white text-base">{ticket.subject}</h3>
-                    {ticket.userUnreadCount && ticket.userUnreadCount > 0 ? (
-                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                        {ticket.userUnreadCount}
-                      </span>
-                    ) : null}
                   </div>
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
                     ticket.status === 'Open' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
@@ -226,8 +222,8 @@ export default function Support({ user }: SupportProps) {
                   </span>
                 </div>
 
-                <p className={`text-sm mb-3 line-clamp-1 ${ticket.userUnreadCount && ticket.userUnreadCount > 0 ? 'text-white font-medium' : 'text-gray-400'}`}>
-                  {ticket.lastMessage}
+                <p className="text-sm mb-3 text-gray-400 italic">
+                  "{ticket.lastMessage}"
                 </p>
                 
                 <div className="flex items-center justify-between pt-2 border-t border-gray-700/50">
@@ -261,130 +257,9 @@ export default function Support({ user }: SupportProps) {
             </div>
           )}
         </div>
-
-        {/* Chat View */}
-        <AnimatePresence>
-          {selectedTicket && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="fixed inset-0 z-40 bg-[#050B14] md:static md:bg-transparent md:h-[600px] flex flex-col"
-            >
-              <div className="bg-[#0B1120] md:rounded-2xl md:border border-gray-800 overflow-hidden flex flex-col h-full shadow-2xl">
-                {/* Chat Header */}
-                <div className="bg-[#131B2F] p-4 border-b border-gray-800 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => setSelectedTicketId(null)} 
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[#0B1121] border border-gray-700 text-gray-400 hover:text-white md:hidden"
-                    >
-                      <ArrowLeft size={18} />
-                    </button>
-                    <div>
-                      <h2 className="font-bold text-white text-lg leading-tight line-clamp-1">{selectedTicket.subject}</h2>
-                      <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                        <span className="text-blue-400">{selectedTicket.category}</span>
-                        <span>•</span>
-                        <span>ID: {selectedTicket.id.slice(-6)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                    selectedTicket.status === 'Open' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
-                    selectedTicket.status === 'Solved' ? 'bg-gray-700 text-gray-400 border border-gray-600' :
-                    'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                  }`}>
-                    {selectedTicket.status}
-                  </span>
-                </div>
-
-                {/* Chat Messages */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#0B1121] custom-scrollbar">
-                  {selectedTicket.messages.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 shadow-sm ${
-                        msg.sender === 'user' 
-                          ? 'bg-yellow-500 text-black rounded-tr-none' 
-                          : 'bg-[#1E293B] border border-gray-700 text-gray-200 rounded-tl-none'
-                      }`}>
-                        <div className="flex items-center justify-between gap-4 mb-1">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                            msg.sender === 'user' ? 'text-black/60' : 'text-blue-400'
-                          }`}>
-                            {msg.sender === 'user' ? 'You' : 'Support Team'}
-                          </span>
-                          <span className={`text-[10px] ${
-                            msg.sender === 'user' ? 'text-black/50' : 'text-gray-500'
-                          }`}>
-                            {msg.timestamp}
-                          </span>
-                        </div>
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {selectedTicket.status === 'Solved' && (
-                    <div className="flex justify-center my-4">
-                      <span className="bg-gray-800 text-gray-400 text-xs px-3 py-1 rounded-full border border-gray-700">
-                        This ticket has been marked as solved
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Chat Input */}
-                <div className="p-3 bg-[#131B2F] border-t border-gray-800 shrink-0">
-                  <form 
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const inputEl = e.currentTarget.elements.namedItem('reply') as HTMLInputElement;
-                      const replyText = inputEl.value;
-                      if (!replyText.trim()) return;
-                      
-                      try {
-                        const newMessage = {
-                          id: Date.now().toString(),
-                          text: replyText,
-                          sender: 'user',
-                          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        };
-                        const updatedMessages = [...(selectedTicket.messages || []), newMessage];
-                        await updateDoc(doc(db, 'support_tickets', selectedTicket.id), {
-                          messages: updatedMessages,
-                          lastMessage: replyText,
-                          status: 'Open'
-                        });
-                        inputEl.value = '';
-                      } catch (err) {
-                        console.error("Error sending reply:", err);
-                      }
-                    }}
-                    className="flex gap-2"
-                  >
-                    <input 
-                      name="reply"
-                      type="text" 
-                      placeholder={selectedTicket.status === 'Solved' ? "Ticket is closed" : "Type your message..."}
-                      disabled={selectedTicket.status === 'Solved'}
-                      className="flex-1 bg-[#050B14] border border-gray-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={selectedTicket.status === 'Solved'}
-                      className="bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-black p-3 rounded-xl transition-colors shadow-lg shadow-yellow-900/20"
-                    >
-                      <ArrowUpRight size={20} />
-                    </button>
-                  </form>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
-      {/* Create Request Modal - Compact Version */}
+      {/* Create Request Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
