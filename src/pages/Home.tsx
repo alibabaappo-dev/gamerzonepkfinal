@@ -7,6 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs, setDoc, onSnapshot, ord
 import { getToken, deleteToken } from 'firebase/messaging';
 import { motion, AnimatePresence } from 'framer-motion';
 
+let popupsShownOnce = false;
 // --- Re-usable Components (No Changes to UI) ---
 const Card = ({ children, className = '' }) => (
   <div className={`bg-[#2C2C2E] p-4 rounded-3xl relative overflow-hidden border border-gray-700/50 ${className}`}>
@@ -111,14 +112,14 @@ export default function Home({ user, onLogout }) {
   // OPTIMIZATION LOCK: Stop 191M reads loop
   const fetchLock = useRef(false);
 
-  // Pop-up logic (Session based)
+  // Pop-up logic (Resets on Refresh due to global variable)
   const [activePopup, setActivePopup] = useState(0); 
+  const fetchLock = useRef(false);
 
   useEffect(() => {
-    const hasShown = sessionStorage.getItem('gamerZonePopupsShown');
-    if (!hasShown) {
+    if (!popupsShownOnce) {
       setActivePopup(1);
-      sessionStorage.setItem('gamerZonePopupsShown', 'true');
+      popupsShownOnce = true;
     }
   }, []);
 
