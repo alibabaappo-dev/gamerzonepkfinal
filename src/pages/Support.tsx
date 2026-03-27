@@ -48,6 +48,7 @@ export default function Support({ user }: SupportProps) {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function Support({ user }: SupportProps) {
         ...doc.data()
       })) as Ticket[];
       
-      // Sort client-side: Latest first
+      // Client-side sort: Latest first for cooldown check
       ticketsData.sort((a, b) => {
         const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
         const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
@@ -95,21 +96,21 @@ export default function Support({ user }: SupportProps) {
       return;
     }
 
-    // --- 24 HOUR LIMIT CHECK ---
-    const lastTicket = tickets[0]; // Latest ticket because we sorted desc
-    if (lastTicket && lastTicket.createdAt) {
-        const lastTicketTime = lastTicket.createdAt.toMillis();
-        const currentTime = Date.now();
-        const diffInHours = (currentTime - lastTicketTime) / (1000 * 60 * 60);
+    // --- 24 HOUR COOLDOWN LOGIC ---
+    const latestTicket = tickets[0];
+    if (latestTicket && latestTicket.createdAt) {
+      const lastTime = latestTicket.createdAt.toMillis();
+      const currentTime = Date.now();
+      const diffInHours = (currentTime - lastTime) / (1000 * 60 * 60);
 
-        if (diffInHours < 24) {
-            const hoursLeft = Math.ceil(24 - diffInHours);
-            setToastType('error');
-            setToastMessage(`Please wait ${hoursLeft} more hours before sending another request.`);
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
-            return;
-        }
+      if (diffInHours < 24) {
+        const remaining = Math.ceil(24 - diffInHours);
+        setToastType('error');
+        setToastMessage(`Wait ${remaining}h more before sending another request.`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -166,10 +167,10 @@ export default function Support({ user }: SupportProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             className={`fixed top-4 left-4 right-4 z-50 border p-4 rounded-xl shadow-lg flex items-start ${
-                toastType === 'success' ? 'bg-green-900/90 border-green-500' : 'bg-red-900/90 border-red-500'
+              toastType === 'success' ? 'bg-green-900/90 border-green-500' : 'bg-red-900/90 border-red-500'
             }`}
           >
-            {toastType === 'success' ? <CheckCircle className="text-green-400 mr-3 mt-0.5 flex-shrink-0" size={20} /> : <AlertCircle className="text-red-400 mr-3 mt-0.5 flex-shrink-0" size={20} />}
+            {toastType === 'success' ? <CheckCircle className="text-green-400 mr-3 mt-0.5" size={20} /> : <AlertCircle className="text-red-400 mr-3 mt-0.5" size={20} />}
             <div className="flex-1">
               <p className="font-medium text-sm">{toastMessage}</p>
             </div>
@@ -197,11 +198,9 @@ export default function Support({ user }: SupportProps) {
             <div className="text-center py-12 flex flex-col items-center justify-center">
               <div className="relative flex items-center justify-center mb-4 w-16 h-16">
                 <div className="absolute inset-0 border-[2px] border-yellow-500/10 rounded-full"></div>
-                <div className="absolute inset-0 border-[4px] border-transparent border-t-yellow-500 rounded-full animate-spin shadow-[0_0_15px_rgba(234,179,8,0.4)]"></div>
-                <div className="absolute inset-3 border-[2px] border-transparent border-b-yellow-500/50 rounded-full animate-[spin_1.5s_linear_infinite_reverse]"></div>
-                <div className="absolute inset-0 m-auto w-2.5 h-2.5 bg-yellow-500 rounded-full shadow-[0_0_10px_rgba(234,179,8,0.8)] animate-pulse"></div>
+                <div className="absolute inset-0 border-[4px] border-transparent border-t-yellow-500 rounded-full animate-spin"></div>
               </div>
-              <p className="text-yellow-400 font-bold animate-pulse uppercase tracking-widest text-sm drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]">Loading tickets...</p>
+              <p className="text-yellow-400 font-bold uppercase tracking-widest text-sm">Loading...</p>
             </div>
           ) : tickets.length > 0 ? (
             tickets.map((ticket) => (
@@ -210,29 +209,23 @@ export default function Support({ user }: SupportProps) {
                 className="bg-[#131B2F] rounded-2xl p-4 border border-gray-800 transition-all"
               >
                 <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-white text-base">{ticket.subject}</h3>
-                  </div>
+                  <h3 className="font-bold text-white text-base">{ticket.subject}</h3>
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
-                    ticket.status === 'Open' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
-                    ticket.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 
-                    'bg-gray-700 text-gray-400 border border-gray-600'
+                    ticket.status === 'Open' ? 'bg-green-500/20 text-green-400' : 
+                    ticket.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-400' : 
+                    'bg-gray-700 text-gray-400'
                   }`}>
                     {ticket.status}
                   </span>
                 </div>
 
-                <p className="text-sm mb-3 text-gray-400 italic">
+                <p className="text-sm mb-3 text-gray-400 italic font-medium">
                   "{ticket.lastMessage}"
                 </p>
                 
                 <div className="flex items-center justify-between pt-2 border-t border-gray-700/50">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                      ticket.priority === 'High' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
-                      ticket.priority === 'Medium' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 
-                      'bg-gray-700/50 text-gray-400 border border-gray-600/50'
-                    }`}>
+                    <span className="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/20 uppercase">
                       {ticket.priority}
                     </span>
                     <span className="text-[10px] text-gray-500">{ticket.category}</span>
@@ -243,14 +236,11 @@ export default function Support({ user }: SupportProps) {
             ))
           ) : (
             <div className="flex flex-col items-center justify-center h-[65vh] text-center bg-[#131B2F] rounded-2xl border border-gray-800 p-8">
-              <div className="w-16 h-16 bg-[#0B1121] rounded-full flex items-center justify-center mb-4 border border-gray-700">
-                <MessageSquare size={32} className="text-gray-600" />
-              </div>
+              <MessageSquare size={32} className="text-gray-600 mb-4" />
               <h3 className="text-white font-bold text-lg mb-2">No Support Tickets</h3>
-              <p className="text-gray-500 text-sm mb-6 max-w-xs">Need help? Create a new support request and we'll get back to you shortly.</p>
               <button 
                 onClick={() => setIsModalOpen(true)}
-                className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2.5 px-6 rounded-xl text-sm transition-colors shadow-lg shadow-yellow-900/20"
+                className="bg-yellow-500 text-black font-bold py-2.5 px-6 rounded-xl text-sm mt-4 shadow-lg shadow-yellow-900/20"
               >
                 Create Request
               </button>
@@ -271,7 +261,7 @@ export default function Support({ user }: SupportProps) {
             >
               <div className="p-5">
                 <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-xl font-bold text-yellow-400 leading-tight">Create New Support<br />Request</h2>
+                  <h2 className="text-xl font-bold text-yellow-400 leading-tight">New Support<br />Request</h2>
                   <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white">
                     <X size={20} />
                   </button>
@@ -279,23 +269,23 @@ export default function Support({ user }: SupportProps) {
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-white text-xs font-medium mb-1">Subject <span className="text-red-500">*</span></label>
+                    <label className="block text-white text-xs font-medium mb-1">Subject *</label>
                     <input 
                       type="text" 
                       value={formData.subject}
                       onChange={(e) => setFormData({...formData, subject: e.target.value})}
-                      placeholder="Brief description of your issue"
-                      className="w-full bg-[#131B2F] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-yellow-500 placeholder-gray-600"
+                      placeholder="Issue title"
+                      className="w-full bg-[#131B2F] border border-gray-700 rounded-lg p-2 text-sm text-white outline-none focus:border-yellow-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-white text-xs font-medium mb-1">Category <span className="text-red-500">*</span></label>
+                    <label className="block text-white text-xs font-medium mb-1">Category *</label>
                     <div className="relative">
                       <select 
                         value={formData.category}
                         onChange={(e) => setFormData({...formData, category: e.target.value})}
-                        className="w-full bg-[#131B2F] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-yellow-500 appearance-none"
+                        className="w-full bg-[#131B2F] border border-gray-700 rounded-lg p-2 text-sm text-white outline-none focus:border-yellow-500 appearance-none"
                       >
                         <option value="" disabled>Select Category</option>
                         {categories.map((cat) => (
@@ -307,51 +297,27 @@ export default function Support({ user }: SupportProps) {
                   </div>
 
                   <div>
-                    <label className="block text-white text-xs font-medium mb-1">Priority</label>
-                    <div className="relative">
-                      <select 
-                        value={formData.priority}
-                        onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                        className="w-full bg-[#131B2F] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-yellow-500 appearance-none"
-                      >
-                        <option value="Low">Low</option>
-                        <option value="Medium">Medium</option>
-                        <option value="High">High</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={14} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-white text-xs font-medium mb-1">Message <span className="text-red-500">*</span></label>
+                    <label className="block text-white text-xs font-medium mb-1">Message *</label>
                     <textarea 
                       value={formData.message}
                       onChange={(e) => setFormData({...formData, message: e.target.value})}
-                      placeholder="Describe your issue in detail..."
+                      placeholder="Issue description..."
                       rows={3}
-                      className="w-full bg-[#131B2F] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-yellow-500 placeholder-gray-600 resize-none"
+                      className="w-full bg-[#131B2F] border border-gray-700 rounded-lg p-2 text-sm text-white outline-none focus:border-yellow-500 resize-none"
                     />
                   </div>
 
-                  <div className="pt-1 space-y-2">
+                  <div className="pt-2 space-y-2">
                     <button 
                       onClick={handleCreateRequest}
                       disabled={isSubmitting}
-                      className="w-full bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center"
+                      className="w-full bg-yellow-500 text-black font-bold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center disabled:opacity-50"
                     >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin mr-2"></div>
-                          Creating...
-                        </>
-                      ) : (
-                        'Create Request'
-                      )}
+                      {isSubmitting ? 'Creating...' : 'Create Request'}
                     </button>
                     <button 
                       onClick={() => setIsModalOpen(false)}
-                      disabled={isSubmitting}
-                      className="w-full bg-[#1C2536] hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-lg text-sm transition-colors border border-gray-700"
+                      className="w-full bg-[#1C2536] text-white font-medium py-2.5 rounded-lg text-sm border border-gray-700"
                     >
                       Cancel
                     </button>
