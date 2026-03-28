@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <link rel="icon" type="image/png" href="/favicon.ico" />
   <title>GAMER ZONE PK - Pakistan's Premier Free Fire Tournament Platform</title>
   <meta name="description" content="Join Pakistan's most trusted Free Fire tournament platform. Compete in professional Solo, Duo, and Squad tournaments, win real cash prizes up to Rs.10,000+, and climb the leaderboard. Instant withdrawals, fair play guaranteed, and 24/7 support." />
@@ -13,22 +13,64 @@
   <meta property="og:image" content="https://i.ibb.co/JwjG5968/logo.png" />
   <meta property="og:description" content="Compete in professional Free Fire tournaments, win real cash prizes up to Rs.10,000+. Join 1,500+ active players on Pakistan's most trusted gaming platform." />
 
+  <!-- SECURITY SCRIPT TO DISABLE DEV TOOLS & INSPECT -->
+  <script>
+    // 1. Disable Right Click
+    document.addEventListener('contextmenu', event => event.preventDefault());
 
+    // 2. Disable Keyboard Shortcuts (F12, Ctrl+Shift+I, Ctrl+U, etc)
+    document.onkeydown = function (e) {
+      // Disable F12
+      if (e.keyCode == 123) {
+        return false;
+      }
+      // Disable Ctrl+Shift+I (Inspect Element)
+      if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) {
+        return false;
+      }
+      // Disable Ctrl+Shift+C (Inspect Element)
+      if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) {
+        return false;
+      }
+      // Disable Ctrl+Shift+J (Console)
+      if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) {
+        return false;
+      }
+      // Disable Ctrl+U (View Source)
+      if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) {
+        return false;
+      }
+      // Disable Ctrl+S (Save Page)
+      if (e.ctrlKey && e.keyCode == 'S'.charCodeAt(0)) {
+        return false;
+      }
+      // Disable Ctrl+P (Print Page)
+      if (e.ctrlKey && e.keyCode == 'P'.charCodeAt(0)) {
+        return false;
+      }
+    };
+
+    // 3. Disable Dragging text/images
+    document.ondragstart = function() { return false; };
+    
+    // 4. Disable Text Selection
+    document.onselectstart = function() { return false; };
+  </script>
+
+  <style>
+    /* CSS backup to prevent text selection and touch highlighting */
+    body {
+      -webkit-user-select: none; /* Safari */
+      -ms-user-select: none; /* IE 10 and IE 11 */
+      user-select: none; /* Standard syntax */
+      -webkit-touch-callout: none;
+    }
+  </style>
 </head>
 
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
-<script>
-    document.addEventListener('contextmenu', event => event.preventDefault());
-    document.onkeydown = function (e) {
-      if (e.keyCode == 123) return false; // F12
-      if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; // Ctrl+Shift+I
-      if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; // Ctrl+Shift+J
-      if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; // Ctrl+U
-    };
-</script>
-  
 </body>
 
 </html>
