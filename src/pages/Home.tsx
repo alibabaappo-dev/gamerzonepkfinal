@@ -1011,43 +1011,40 @@ export default function Home({ user, onLogout }) {
       <EmojiModal 
         isOpen={activePopup === 1} 
         onClose={handleNextPopup}
-        title="⚡ NEW MATCHES ADDED ✅"
+        title="⚡ WEBSITE CLOSE ✅"
       >
         <div className="space-y-3">
-          <p className="text-xs font-bold text-gray-200">🔥 BR SURVIVAL — LOW ENTRY</p>
-          <p className="text-xs font-bold text-gray-200">🔥 Check Now New Tournaments</p>
+          <p className="text-xs font-bold text-gray-200">🔥 WEBSITE UPDATE HOGI IS WAJA SE 1 MONTH BAAD OPEN HOGI</p>
+          <p className="text-xs font-bold text-gray-200">🔥 NEW UPDATE KA WAIT KREN </p>
           <div className="pt-4 border-t border-gray-800">
             <p className="text-[11px] font-bold text-gray-400 leading-relaxed">
-              💪 Ab Kam Entry Me Zyada Prize !<br />
-              ⚡ Kuch Slots Rehte Hai Join Now !
+              💪 SB BNDE COINS WITHDRAWAL KRLEN!<br />
+              ⚡ 2 DIN BAAD WEBSITE CLOSE HOGI USKE BAAD HM ZIMEDAR NHI COINS KE ISSE PEHLE WITHDRAWAL KRLEN !
             </p>
             <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight text-center">
-              GAMER ZONE — JOIN NOW ⚔️🔥
+              GAMER ZONE — ⚔️🔥
             </p>
           </div>
         </div>
       </EmojiModal>
 
-      {/* Pop-up 2: Video Links */}
+        {/* Pop-up 3: Ban Alert */}
       <EmojiModal 
         isOpen={activePopup === 2} 
         onClose={handleNextPopup}
-        title="WATCH FULL VIDEO"
+        title="🚨 WITHDRAWAL ALERT 🚨"
       >
-        <div className="space-y-3">
-          <p className="text-xs font-bold text-gray-200">🚀 Watch Full Video of Gamer Zone On Youtube,Tiktok and Also Join Whatsapp Group !</p>
-          <p className="text-xs font-bold text-gray-200">🔥 Search Zahid FF or Click Below Link to See !</p>
-          <div className="pt-4 border-t border-gray-800 space-y-3">
-            <div className="flex items-center gap-2 text-[11px] font-bold leading-relaxed">
-              <img src="https://i.ibb.co/SDfYyXyx/image.png" alt="icon" className="w-5 h-5 object-contain" /> 
-              <a href="https://vt.tiktok.com/ZSuKtFeFe/" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">WATCH ON TIKTOK</a>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] font-bold leading-relaxed">
-              <img src="https://i.ibb.co/ycKSV4FH/image.png" alt="icon" className="w-5 h-5 object-contain" /> 
-              <a href="https://www.youtube.com/@ZahidFF" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">WATCH ON YOUTUBE</a>
-            </div>
+        <div className="space-y-3 text-xs font-bold text-red-500">
+          <p>⚠️ SARAY BNDE COINS WITHDRAWAL KRLEN ! </p>
+          <p>⚠️ 2 DAYS KA TIME HAI JALDI JALDI WITHDRAWAL KRLEN ! </p>
+          <div className="pt-4 border-t border-gray-800">
+            <p className="text-[11px] font-bold text-gray-400 leading-relaxed text-center">
+            <br /> FAST WITHDRAWAL KREN !
+            </p>
+            <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight text-center">
+            🚨 2 DAYS KE BAAD WEBSITE CLOSE HOJAYEGI 🚨
+            </p>
           </div>
-          <p className="text-[10px] mt-4 text-orange-400 font-black uppercase tracking-tight text-center">GAMER ZONE — Play & Earn Together 🤑🔥</p>
         </div>
       </EmojiModal>
 
@@ -1055,17 +1052,17 @@ export default function Home({ user, onLogout }) {
       <EmojiModal 
         isOpen={activePopup === 3} 
         onClose={handleNextPopup}
-        title="🚨 BAN ALERT 🚨"
+        title="🚨 WITHDRAWAL ALERT 🚨"
       >
         <div className="space-y-3 text-xs font-bold text-red-500">
-          <p>⚠️ FAKE DEPOSIT REQUEST CAN BAN YOUR ACCOUNT ! </p>
-          <p>⚠️ FAKE SUPPORT REQUEST AND SPAM BAN YOUR ACCOUNT ! </p>
+          <p>⚠️ SARAY BNDE COINS WITHDRAWAL KRLEN ! </p>
+          <p>⚠️ 2 DAYS KA TIME HAI JALDI JALDI WITHDRAWAL KRLEN ! </p>
           <div className="pt-4 border-t border-gray-800">
             <p className="text-[11px] font-bold text-gray-400 leading-relaxed text-center">
-            Avoid fake screenshots & spamming!<br />Repeat offenders will be device banned!
+            <br /> FAST WITHDRAWAL KREN !
             </p>
             <p className="text-[10px] mt-4 text-yellow-400 font-black uppercase tracking-tight text-center">
-            🚨 NO SECOND CHANCES 🚨
+            🚨 2 DAYS KE BAAD WEBSITE CLOSE HOJAYEGI 🚨
             </p>
           </div>
         </div>
