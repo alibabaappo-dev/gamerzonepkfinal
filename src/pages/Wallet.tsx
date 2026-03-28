@@ -493,93 +493,91 @@ export default function Wallet() {
         </div>
 
         <div className="bg-[#0B1120] rounded-2xl p-6 mb-8 border border-gray-800">
-          <div className="flex items-start mb-6">
-            <div className="bg-purple-900/30 p-3 rounded-xl mr-4">
-              <ArrowDownUp size={24} className="text-purple-400" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold mb-1">Withdrawals</h2>
-              <p className="text-white text-lg">Balance: <span className="text-yellow-400 font-bold">{balance} coins</span></p>
-            </div>
-          </div>
+  <div className="flex items-start mb-6">
+    <div className="bg-purple-900/30 p-3 rounded-xl mr-4">
+      <ArrowDownUp size={24} className="text-purple-400" />
+    </div>
+    <div>
+      <h2 className="text-2xl font-bold mb-1">Withdrawals</h2>
+      <p className="text-white text-lg">Balance: <span className="text-yellow-400 font-bold">{balance} coins</span></p>
+    </div>
+  </div>
 
-          <div className="bg-[#2D1A1A] border border-orange-900/50 rounded-xl p-4 mb-6">
-            <p className="text-gray-300 text-sm">
-              <span className="text-orange-500 font-bold">Limits:</span> Min {minWithdrawal} coins Max 1,200 coins per request
-            </p>
-          </div>
-          {withdrawalCooldown ? (
-             <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-6 text-center mb-4">
-               <Clock className="mx-auto text-red-400 mb-3" size={32} />
-               <h3 className="text-red-400 font-bold text-lg mb-1">Withdrawal is in Cool Down</h3>
-               <p className="text-gray-400 text-sm">You can submit another request in:</p>
-               <p className="text-2xl font-mono text-white mt-2">{formatRemainingTime(withdrawalCooldown)}</p>
-             </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="block font-bold text-gray-300 text-sm mb-2">Amount (Coins)</label>
-                <input 
-                  type="number"
-                  value={withdrawalAmount}
-                  onChange={(e) => setWithdrawalAmount(e.target.value)}
-                  placeholder="e.g. 500" 
-                  disabled={isSubmittingWithdrawal}
-                  className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <p className="text-gray-500 text-xs mt-2">Available: {balance} coins</p>
-              </div>
+  <div className="bg-[#2D1A1A] border border-orange-900/50 rounded-xl p-4 mb-6">
+    <p className="text-gray-300 text-sm">
+      <span className="text-orange-500 font-bold">Limits:</span> Min {minWithdrawal} coins Max 1,200 coins per request
+    </p>
+  </div>
 
-              <div>
-                <label className="block font-bold text-gray-300 text-sm mb-2">Select Payment Method</label>
-                <select id="withdrawalMethod" disabled={isSubmittingWithdrawal} className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed">
-                  {withdrawalPaymentMethods.filter(m => m.enabled).map((method) => (
-                    <option key={method.name} value={method.name}>{method.name}</option>
-                  ))}
-                </select>
-              </div>
+  <div className="space-y-4">
+    <div>
+      <label className="block font-bold text-gray-300 text-sm mb-2">Amount (Coins)</label>
+      <input 
+        type="number"
+        value={withdrawalAmount}
+        onChange={(e) => setWithdrawalAmount(e.target.value)}
+        placeholder="e.g. 500" 
+        disabled={isSubmittingWithdrawal}
+        className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+      <p className="text-gray-500 text-xs mt-2">Available: {balance} coins</p>
+    </div>
 
-              <div>
-                <label className="block font-bold text-gray-300 text-sm mb-2">Your Account Number / IBAN<br/></label>
-                <input 
-                  type="text" 
-                  value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value)}
-                  placeholder="e.g., 03001234567" 
-                  disabled={isSubmittingWithdrawal}
-                  className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
+    <div>
+      <label className="block font-bold text-gray-300 text-sm mb-2">Select Payment Method</label>
+      <select 
+        value={method} 
+        onChange={(e) => setMethod(e.target.value)} 
+        disabled={isSubmittingWithdrawal} 
+        className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {withdrawalPaymentMethods.filter(m => m.enabled).map((m) => (
+          <option key={m.name} value={m.name}>{m.name}</option>
+        ))}
+      </select>
+    </div>
 
-              <div>
-                <label className="block font-bold text-gray-300 text-sm mb-2">Account Holder Name</label>
-                <input 
-                  type="text" 
-                  value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
-                  placeholder="Account Name" 
-                  disabled={isSubmittingWithdrawal}
-                  className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
+    <div>
+      <label className="block font-bold text-gray-300 text-sm mb-2">Your Account Number / IBAN</label>
+      <input 
+        type="text" 
+        value={accountNumber}
+        onChange={(e) => setAccountNumber(e.target.value)}
+        placeholder="e.g., 03001234567" 
+        disabled={isSubmittingWithdrawal}
+        className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+    </div>
 
-              <button 
-                onClick={handleWithdrawalSubmit}
-                disabled={isSubmittingWithdrawal}
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition-colors mt-2 shadow-[0_0_15px_rgba(147,51,234,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isSubmittingWithdrawal ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Processing...
-                  </>
-                ) : (
-                  'Submit Withdrawal Request'
-                )}
-              </button>
-            </div>
-          )}
-        </div>
+    <div>
+      <label className="block font-bold text-gray-300 text-sm mb-2">Account Holder Name</label>
+      <input 
+        type="text" 
+        value={accountName}
+        onChange={(e) => setAccountName(e.target.value)}
+        placeholder="Account Name" 
+        required
+        disabled={isSubmittingWithdrawal}
+        className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+    </div>
+
+    <button 
+      onClick={handleWithdrawalSubmit}
+      disabled={isSubmittingWithdrawal}
+      className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition-colors mt-2 shadow-[0_0_15px_rgba(147,51,234,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+    >
+      {isSubmittingWithdrawal ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          Processing...
+        </>
+      ) : (
+        'Submit Withdrawal Request'
+      )}
+    </button>
+  </div>
+</div>
 
         <div className="bg-[#0B1120] rounded-2xl p-6 mb-8 border border-gray-800">
           <div className="flex items-center justify-between mb-6">
