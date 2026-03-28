@@ -1,193 +1,79 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Wallet as WalletIcon, CreditCard, ArrowRight, Star, Flame, Diamond, ArrowDownUp, History, Plus, Coins, CheckCircle, X, AlertCircle, Clock } from 'lucide-react';
-import { Link } from 'react-router-dom'; // CORRECTED: Changed from 'react-router-router'
-import BuyCoinsModal from '../components/BuyCoinsModal';
-import { motion, AnimatePresence } from 'motion/react'; // CORRECTED: Back to 'motion/react'
-import { doc, onSnapshot, updateDoc, increment, addDoc, collection, query, where, orderBy, limit, getDoc } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { ArrowLeft, AlertCircle, CheckCircle, X, Wallet, History, CreditCard, Coins } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth, db } from '../lib/firebase';
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp, orderBy, doc, runTransaction } from 'firebase/firestore';
 
-interface Transaction {
-  id: string;
-  type: 'Deposit' | 'Withdrawal';
-  amount: number;
-  date: string;
-  status: 'pending' | 'completed' | 'rejected';
-  paymentMethod?: string;
-  accountNumber?: string;
-  proofUrl?: string;
-}
-
-interface PaymentMethod {
-  name: string;
-  enabled: boolean;
-  details: string;
-  accountName?: string;
-  imageUrl?: string;
-}
-
-// Helper function to format remaining time for Cooldowns (already includes seconds)
-const formatRemainingTime = (targetTime: number) => {
-  const diff = targetTime - Date.now();
-  if (diff <= 0) return "Ready";
-
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-  const format = (num: number) => num.toString().padStart(2, '0');
-
-  return `${format(hours)}h ${format(minutes)}m ${format(seconds)}s`;
-};
-
-export default function Wallet() {
+export default function Withdrawals() {
   const [user] = useAuthState(auth);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [initialAmount, setInitialAmount] = useState('');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [minWithdrawal, setMinWithdrawal] = useState(100);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
+  
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
-  const [withdrawalAmount, setWithdrawalAmount] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [accountName, setAccountName] = useState('');
-  const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
-  
-  const [balance, setBalance] = useState(0);
-  const [minDeposit, setMinDeposit] = useState(50);
-  const [minWithdrawal, setMinWithdrawal] = useState(100);
-  
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [withdrawalPaymentMethods, setWithdrawalPaymentMethods] = useState<PaymentMethod[]>([]);
-
-  const [withdrawalCooldown, setWithdrawalCooldown] = useState<number | null>(null);
-  const [depositCooldown, setDepositCooldown] = useState<number | null>(null);
-  // ADDED: A dummy state to force re-renders for the timer display
-  const [timeTick, setTimeTick] = useState(0); 
 
   useEffect(() => {
     if (!user) return;
 
+    // Fetch user balance
+    const unsubUser = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        setBalance(docSnap.data().walletBalance || 0);
+      }
+    });
+
+    // Fetch transaction settings
     const unsubSettings = onSnapshot(doc(db, 'admin', 'transaction_settings'), (doc) => {
       if (doc.exists()) {
-        setMinDeposit(doc.data().minDeposit || 50);
         setMinWithdrawal(doc.data().minWithdrawal || 100);
       }
     });
 
-    const unsubPaymentMethods = onSnapshot(collection(db, 'payment_methods'), (snapshot) => {
-      const methods = snapshot.docs.map(doc => ({
-        name: doc.data().name,
-        enabled: doc.data().enabled,
-        details: doc.data().details,
-        accountName: doc.data().accountName, 
-        imageUrl: doc.data().imageUrl
-      }));
+    // Fetch payment methods
+    const unsubMethods = onSnapshot(collection(db, 'withdrawal_payment_methods'), (snapshot) => {
+      const methods = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((m: any) => m.enabled);
       setPaymentMethods(methods);
-    });
-
-    const unsubWithdrawalPaymentMethods = onSnapshot(collection(db, 'withdrawal_payment_methods'), (snapshot) => {
-      const methods = snapshot.docs.map(doc => ({
-        name: doc.data().name,
-        enabled: doc.data().enabled,
-        details: doc.data().details,
-        accountName: doc.data().accountName,
-        imageUrl: doc.data().imageUrl
-      }));
-      setWithdrawalPaymentMethods(methods);
-    });
-
-    // User Data & Cooldown Check (Real-time Firestore listener)
-    const userRef = doc(db, 'users', user.uid);
-    const unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setBalance(data.walletBalance || 0);
-
-        // Withdrawal Cooldown Check (1 per 24 hours)
-        if (data.lastWithdrawalRequestAt) {
-          const lastReq = data.lastWithdrawalRequestAt.toDate ? data.lastWithdrawalRequestAt.toDate().getTime() : new Date(data.lastWithdrawalRequestAt).getTime();
-          const nextAvailable = lastReq + (24 * 60 * 60 * 1000); // 24 hours cooldown
-          if (Date.now() < nextAvailable) setWithdrawalCooldown(nextAvailable);
-          else setWithdrawalCooldown(null);
-        } else {
-          setWithdrawalCooldown(null);
-        }
-
-        // DEPOSIT COOLDOWN LOGIC (2 requests, then wait 2 hours)
-        if (data.depositRequests && data.depositRequests.length >= 2) {
-          const lastReqTime = data.depositRequests[data.depositRequests.length - 1].toDate ? data.depositRequests[data.depositRequests.length - 1].toDate().getTime() : new Date(data.depositRequests[data.depositRequests.length - 1]).getTime();
-          const nextAvailable = lastReqTime + (2 * 60 * 60 * 1000); // 2 hours from the 2nd request
-          
-          if (Date.now() < nextAvailable) {
-            setDepositCooldown(nextAvailable); // Lock the user
-          } else {
-            // If 2 hours passed, reset the requests array to allow new ones (triggered by Firestore listener)
-            await updateDoc(userRef, { depositRequests: [] }); // Reset count
-            setDepositCooldown(null); // Unlock user
-          }
-        } else {
-          setDepositCooldown(null);
-        }
+      if (methods.length > 0 && !method) {
+        setMethod(methods[0].name);
       }
     });
-    
-    // OPTIMIZATION: Sirf 3 latest transactions fetch hongi (Firestore reads bachane ke liye)
-    const txQuery = query(
+
+    // Fetch withdrawal requests
+    const q = query(
       collection(db, 'transactions'),
       where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(3) 
+      where('type', '==', 'Withdrawal'),
+      orderBy('createdAt', 'desc')
     );
 
-    const unsubscribeTx = onSnapshot(txQuery, (snapshot) => {
-      const txData = snapshot.docs.map(doc => ({
+    const unsubRequests = onSnapshot(q, (snapshot) => {
+      const reqs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as Transaction[];
-      setTransactions(txData);
+      }));
+      
+      setRequests(reqs);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching withdrawal requests:", error);
+      setLoading(false);
     });
 
-    return () => {
-      unsubSettings();
-      unsubPaymentMethods();
-      unsubWithdrawalPaymentMethods();
-      unsubscribeUser();
-      unsubscribeTx();
-    };
+    return () => { unsubUser(); unsubSettings(); unsubMethods(); unsubRequests(); };
   }, [user]);
-
-  // CHANGED: Timer to update cooldown display live every second (for running seconds)
-  // This useEffect now runs once and sets up a continuous timer that forces re-renders.
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeTick(prev => prev + 1); // Increment a dummy state to trigger re-renders
-
-      // Check if cooldowns have passed. Access the latest states via functional updates.
-      setWithdrawalCooldown(prevCooldown => {
-        if (prevCooldown !== null && Date.now() >= prevCooldown) {
-          return null; // Cooldown expired, clear it
-        }
-        return prevCooldown; // Still active
-      });
-      setDepositCooldown(prevCooldown => {
-        if (prevCooldown !== null && Date.now() >= prevCooldown) {
-          return null; // Cooldown expired, clear it
-        }
-        return prevCooldown; // Still active
-      });
-    }, 1000); // Update every second for seconds display
-    return () => clearInterval(timer);
-  }, []); // DEPENDENCY CHANGED TO EMPTY ARRAY - Runs once on mount
-
-  const openModal = (amount: string = '') => {
-    if (depositCooldown) {
-      showNotification(`Deposit limit reached! Try again in ${formatRemainingTime(depositCooldown)}`, 'error');
-      return;
-    }
-    setInitialAmount(amount);
-    setIsModalOpen(true);
-  };
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setToastMessage(message);
@@ -196,146 +82,63 @@ export default function Wallet() {
     setTimeout(() => setShowToast(false), 5000);
   };
 
-  const handleDepositSubmit = async (amount: number, paymentMethod: string, file: File) => {
-    if (!user) return;
-    if (depositCooldown) {
-      showNotification(`Deposit limit reached. Try again later.`, 'error');
-      return;
-    }
-
-    try {
-      showNotification('Uploading proof and submitting request...', 'success');
-      
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      const imgbbKey = import.meta.env.VITE_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE'; 
-      const imgbbRes = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      const imgbbData = await imgbbRes.json();
-      if (!imgbbData.success) {
-        throw new Error('Failed to upload image to ImgBB');
-      }
-      
-      const proofUrl = imgbbData.data.url;
-
-      // Check current requests securely before updating
-      const userRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userRef);
-      let currentRequests = userDoc.data()?.depositRequests || [];
-
-      // Logic: If user already has 2 requests, check if 2 hours passed. If yes, reset to 0.
-      if (currentRequests.length >= 2) {
-        const lastReqTime = currentRequests[currentRequests.length - 1].toDate ? currentRequests[currentRequests.length - 1].toDate().getTime() : new Date(currentRequests[currentRequests.length - 1]).getTime();
-        if (Date.now() >= lastReqTime + (2 * 60 * 60 * 1000)) { // 2 hours check
-          currentRequests = []; // 2 hours passed! Reset the count.
-        } else {
-          showNotification(`Deposit limit reached. Try again later.`, 'error');
-          return;
-        }
-      }
-
-      // Add new transaction
-      await addDoc(collection(db, 'transactions'), {
-        userId: user.uid,
-        userEmail: user.email,
-        type: 'Deposit',
-        amount: amount,
-        paymentMethod: paymentMethod,
-        proofUrl: proofUrl,
-        status: 'pending',
-        date: new Date().toLocaleDateString(),
-        createdAt: new Date()
-      });
-
-      // Update the request array in user doc
-      currentRequests.push(new Date());
-      await updateDoc(userRef, { depositRequests: currentRequests });
-
-      showNotification(`Deposit request for ${amount} coins submitted! Waiting for admin approval.`, 'success');
-      setIsModalOpen(false); 
-    } catch (error) {
-      console.error("Error submitting deposit:", error);
-      showNotification('Failed to submit deposit. Please check your ImgBB API key or try again.', 'error');
-    }
-  };
-
   const handleWithdrawalSubmit = async () => {
     if (!user) return;
-    
-    // Withdrawal Cooldown Blocker
-    if (withdrawalCooldown) {
-      showNotification(`Withdrawal limit reached! Try again in ${formatRemainingTime(withdrawalCooldown)}`, 'error');
-      return;
-    }
 
-    const amount = parseInt(withdrawalAmount);
-    
-    if (!withdrawalAmount || isNaN(amount)) {
-      showNotification('Please enter a valid amount', 'error');
-      return;
-    }
+    const numAmount = parseInt(amount);
 
-    if (amount < minWithdrawal) {
-      showNotification(`Minimum withdrawal is ${minWithdrawal} coins`, 'error');
-      return;
-    }
-
-    if (amount > balance) {
-      showNotification('Insufficient Balance', 'error');
-      return;
-    }
-
-    if (!accountNumber) {
-      showNotification('Please enter your account number', 'error');
-      return;
-    }
+    if (!amount || isNaN(numAmount)) return showNotification('Please enter a valid amount', 'error');
+    if (numAmount < minWithdrawal) return showNotification(`Minimum withdrawal is ${minWithdrawal} coins`, 'error');
+    if (numAmount > 1200) return showNotification('Maximum withdrawal is 1200 coins', 'error');
+    if (numAmount > balance) return showNotification('Insufficient Balance', 'error');
+    if (!accountNumber) return showNotification('Please enter account number', 'error');
+    if (!accountName) return showNotification('Please enter account holder name', 'error');
+    if (!method) return showNotification('Please select a payment method', 'error');
 
     setIsSubmittingWithdrawal(true);
 
     try {
-      const userRef = doc(db, 'users', user.uid);
-      // Deduct balance AND add cooldown timestamp (1 per 24 hour)
-      await updateDoc(userRef, {
-        walletBalance: increment(-amount),
-        lastWithdrawalRequestAt: new Date() 
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', user.uid);
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) throw new Error("User does not exist!");
+        
+        const currentBalance = userDoc.data().walletBalance || 0;
+        if (currentBalance < numAmount) throw new Error("Insufficient Balance");
+
+        transaction.update(userRef, { 
+          walletBalance: currentBalance - numAmount
+        });
+        
+        const txRef = doc(collection(db, 'transactions'));
+        transaction.set(txRef, {
+          userId: user.uid,
+          userEmail: user.email,
+          type: 'Withdrawal',
+          amount: numAmount,
+          paymentMethod: method, // Dropdown state used here
+          accountNumber,
+          accountName: accountName || 'N/A',
+          status: 'pending',
+          date: new Date().toLocaleString(),
+          createdAt: serverTimestamp()
+        });
       });
 
-      const paymentMethodElement = document.getElementById('withdrawalMethod') as HTMLSelectElement;
-      const paymentMethod = paymentMethodElement ? paymentMethodElement.value : 'Unknown';
-
-      await addDoc(collection(db, 'transactions'), {
-        userId: user.uid,
-        userEmail: user.email,
-        type: 'Withdrawal',
-        amount: amount,
-        paymentMethod: paymentMethod,
-        accountNumber: accountNumber,
-        accountName: accountName,
-        status: 'pending',
-        date: new Date().toLocaleDateString(),
-        createdAt: new Date()
-      });
-      
-      setWithdrawalAmount('');
+      showNotification('Withdrawal request submitted! Coins deducted.', 'success');
+      setAmount('');
       setAccountNumber('');
       setAccountName('');
-      
-      showNotification('Withdrawal request submitted! Coins deducted.', 'success');
-
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error processing withdrawal:", error);
-      showNotification('Failed to process withdrawal. Please try again.', 'error');
+      showNotification(error.message || 'Failed to process withdrawal.', 'error');
     } finally {
       setIsSubmittingWithdrawal(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 pb-20 font-sans relative">
+    <div className="min-h-screen bg-[#050B14] text-white p-4 pb-20 font-sans relative">
       <AnimatePresence>
         {showToast && (
           <motion.div 
@@ -362,280 +165,167 @@ export default function Wallet() {
           </motion.div>
         )}
       </AnimatePresence>
-            <div className="max-w-md mx-auto">
-        <Link to="/" className="flex items-center text-blue-400 mb-6 hover:text-blue-300">
+
+      <div className="max-w-md mx-auto">
+        <Link to="/" className="flex items-center text-gray-400 mb-6 hover:text-white transition-colors">
           <ArrowLeft size={20} className="mr-2" />
           <span>Back to Dashboard</span>
         </Link>
 
-        <div className="mb-8">
-          <div className="flex items-center mb-2">
-            <WalletIcon size={32} className="text-yellow-400 mr-3" />
-            <h1 className="text-3xl font-bold text-yellow-400">My Wallet</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-yellow-400 mb-1">Withdrawals</h1>
+            <p className="text-gray-400 text-sm">Manage your earnings</p>
           </div>
-          <p className="text-gray-400 text-sm">
-            Manage your coins, purchases, and withdrawals
-          </p>
+          <div className="bg-[#131B2F] px-4 py-2 rounded-xl border border-gray-800 text-right">
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-bold">Balance</p>
+            <p className="text-yellow-400 font-bold text-xl flex items-center justify-end gap-1">
+              <Coins size={16} />
+              {balance} <span className="text-xs text-yellow-500/70">coins</span>
+            </p>
+          </div>
         </div>
 
-        <div className="bg-gradient-to-br from-[#1E293B] to-[#2D2416] rounded-2xl p-6 mb-8 border border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.1)] relative overflow-hidden">
-          <div className="flex items-center text-gray-300 mb-4">
-            <WalletIcon size={20} className="mr-2" />
-            <span>Available Balance</span>
-          </div>
-          <div className="flex items-center mb-1">
-            <div className="relative mr-3">
-              <Coins size={40} className="text-yellow-400" />
+        {/* Request Withdrawal Card */}
+        <div className="bg-[#0B1120] rounded-2xl p-6 mb-8 border border-gray-800 shadow-lg relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+          
+          <div className="flex items-center gap-3 mb-6 relative z-10">
+            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+              <Wallet className="text-blue-400" size={20} />
             </div>
-            <span className="text-6xl font-bold text-yellow-400">{balance}</span>
+            <h2 className="text-xl font-bold text-white">Request Withdrawal</h2>
           </div>
-          <p className="text-gray-400 text-sm mb-6">
-            Coins = {balance} PKR
-          </p>
-          <button 
-            onClick={() => openModal()}
-            disabled={depositCooldown !== null}
-            className={`w-full font-bold py-3 rounded-xl flex items-center justify-center transition-colors ${depositCooldown ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-yellow-500 hover:bg-yellow-400 text-black'}`}
-          >
-            {depositCooldown ? (
-              <><Clock size={20} className="mr-2" /> CoolDown ({formatRemainingTime(depositCooldown)})</>
-            ) : (
-              <><Plus size={20} className="mr-2" /> Buy Coins</>
-            )}
-          </button>
-        </div>
 
-        <div className="bg-[#0B1120] rounded-2xl p-6 mb-8 border border-gray-800">
-          <div className="flex items-start mb-6">
-            <div className="bg-green-500/10 p-3 rounded-xl mr-4">
-              <Coins size={24} className="text-green-500" />
-            </div>
+          <div className="space-y-4 relative z-10">
             <div>
-              <h2 className="text-xl font-bold mb-1">Purchase Coins</h2>
-              <div className="bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-lg inline-block mt-2">
-                <p className="text-green-500 text-xs font-bold uppercase tracking-wider">Min Deposit: {minDeposit} PKR</p>
+              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Amount (Coins)</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 pl-4 text-white focus:outline-none focus:border-yellow-500 transition-colors placeholder-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className="absolute right-4 top-3.5 text-xs text-yellow-500 font-bold">COINS</span>
+              </div>
+              <p className="text-gray-500 text-[10px] mt-1.5 flex justify-between">
+                <span>Min: {minWithdrawal} coins</span>
+                <span>Max: 1200 coins</span>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Select Payment Method</label>
+              <div className="relative">
+                <select
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value)}
+                  disabled={isSubmitting || paymentMethods.length === 0}
+                  className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-500 appearance-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {paymentMethods.length === 0 ? (
+                    <option value="">No payment methods available</option>
+                  ) : (
+                    paymentMethods.map(pm => (
+                      <option key={pm.id} value={pm.name}>{pm.name}</option>
+                    ))
+                  )}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                  <CreditCard size={16} />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-[#131B2F] rounded-xl p-5 border border-blue-900/50 mb-6">
-            <div className="flex items-center text-blue-400 font-semibold mb-3">
-              <ArrowRight size={18} className="mr-2" />
-              Payment Instructions
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Account Number / IBAN</label>
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="03001234567 or IBAN"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-500 placeholder-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+             <div>
+                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Account Holder Name</label>
+                <input
+                  type="text"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="Account Name"
+                  required
+                  disabled={isSubmitting}
+                  className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-500 placeholder-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
             </div>
-            <p className="text-gray-300 text-sm mb-3">
-              <span className="font-bold text-blue-400">Methods:</span> NayaPay, Sadapay, JazzCash, EasyPaisa
-            </p>
-            <p className="text-gray-300 text-sm mb-5">
-              Upload payment screenshot after transfer. Admin verifies within 24 hours.
-            </p>
-            
-            <div className="border-t border-gray-800 pt-4 mb-4">
-              <p className="text-blue-400 font-semibold text-sm mb-3">Payment Account Numbers:</p>
-              
-              <div className="space-y-3">
-                {paymentMethods.filter(m => m.enabled).map((method) => (
-                  <div key={method.name} className="bg-[#0B1120] p-3 rounded-lg border border-gray-800">
-                    <p className="text-gray-400 text-xs mb-1">{method.name}</p>
-                    <p className="text-yellow-400 font-bold text-lg tracking-wider">{method.details}</p>
+
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-yellow-900/20 mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                  Processing...
+                </>
+              ) : (
+                'Submit Withdrawal Request'
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* My Withdrawal Requests Card */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <History className="text-gray-400" size={18} />
+            <h2 className="text-lg font-bold text-white">Transaction History</h2>
+          </div>
+          
+          {loading ? (
+            <div className="text-center py-12 flex flex-col items-center justify-center">
+              <div className="w-8 h-8 border-4 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin"></div>
+            </div>
+          ) : requests.length === 0 ? (
+            <div className="bg-[#0B1120] rounded-2xl p-8 border border-gray-800 text-center">
+              <div className="w-12 h-12 bg-gray-800/50 rounded-full flex items-center justify-center mx-auto mb-3">
+                <History className="text-gray-600" size={24} />
+              </div>
+              <p className="text-gray-400 font-medium">No transaction yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {requests.map((req) => (
+                <div key={req.id} className="bg-[#0B1120] border border-gray-800 p-5 rounded-2xl flex flex-col gap-4 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xl font-bold text-white mb-1 flex items-baseline gap-1">
+                        {req.amount} <span className="text-xs text-gray-500 font-normal">coins</span>
+                      </p>
+                      <p className="text-xs text-gray-500 font-mono">{req.date}</p>
+                    </div>
+                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border ${
+                      req.status === 'completed' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
+                      req.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                      'bg-red-500/10 text-red-400 border-red-500/20'
+                    }`}>
+                      {req.status}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="bg-[#131B2F] rounded-2xl p-6 border border-gray-800 text-center flex flex-col items-center">
-              <Star size={40} className="text-yellow-400 mb-3 fill-yellow-400" />
-              <h3 className="text-2xl font-bold mb-1">50 Coins</h3>
-              <p className="text-gray-400 text-sm mb-3">Starter</p>
-              <p className="text-3xl font-bold text-yellow-400 mb-5">50 PKR</p>
-              <button 
-                onClick={() => openModal('50')}
-                disabled={depositCooldown !== null}
-                className="w-full bg-[#1E293B] hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
-              >
-                Buy Now
-              </button>
-            </div>
-
-            <div className="bg-[#131B2F] rounded-2xl p-6 border border-yellow-500 text-center flex flex-col items-center relative shadow-[0_0_15px_rgba(234,179,8,0.1)]">
-              <div className="absolute -top-3 bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full">
-                POPULAR
-              </div>
-              <Flame size={40} className="text-orange-500 mb-3 fill-orange-500" />
-              <h3 className="text-2xl font-bold mb-1">100 Coins</h3>
-              <p className="text-gray-400 text-sm mb-3">Popular</p>
-              <p className="text-3xl font-bold text-yellow-400 mb-5">100 PKR</p>
-              <button 
-                onClick={() => openModal('100')}
-                disabled={depositCooldown !== null}
-                className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl transition-colors disabled:opacity-50"
-              >
-                Buy Now
-              </button>
-            </div>
-
-            <div className="bg-[#131B2F] rounded-2xl p-6 border border-gray-800 text-center flex flex-col items-center">
-              <Diamond size={40} className="text-blue-400 mb-3 fill-blue-400" />
-              <h3 className="text-2xl font-bold mb-1">250 Coins</h3>
-              <p className="text-gray-400 text-sm mb-3">Best Value</p>
-              <p className="text-3xl font-bold text-yellow-400 mb-5">250 PKR</p>
-              <button 
-                onClick={() => openModal('250')}
-                disabled={depositCooldown !== null}
-                className="w-full bg-[#1E293B] hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
-              >
-                Buy Now
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-[#0B1120] rounded-2xl p-6 mb-8 border border-gray-800">
-  <div className="flex items-start mb-6">
-    <div className="bg-purple-900/30 p-3 rounded-xl mr-4">
-      <ArrowDownUp size={24} className="text-purple-400" />
-    </div>
-    <div>
-      <h2 className="text-2xl font-bold mb-1">Withdrawals</h2>
-      <p className="text-white text-lg">Balance: <span className="text-yellow-400 font-bold">{balance} coins</span></p>
-    </div>
-  </div>
-
-  <div className="bg-[#2D1A1A] border border-orange-900/50 rounded-xl p-4 mb-6">
-    <p className="text-gray-300 text-sm">
-      <span className="text-orange-500 font-bold">Limits:</span> Min {minWithdrawal} coins Max 1,200 coins per request
-    </p>
-  </div>
-
-  <div className="space-y-4">
-    <div>
-      <label className="block font-bold text-gray-300 text-sm mb-2">Amount (Coins)</label>
-      <input 
-        type="number"
-        value={withdrawalAmount}
-        onChange={(e) => setWithdrawalAmount(e.target.value)}
-        placeholder="e.g. 500" 
-        disabled={isSubmittingWithdrawal}
-        className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-      />
-      <p className="text-gray-500 text-xs mt-2">Available: {balance} coins</p>
-    </div>
-
-    <div>
-      <label className="block font-bold text-gray-300 text-sm mb-2">Select Payment Method</label>
-      <select 
-        value={method} 
-        onChange={(e) => setMethod(e.target.value)} 
-        disabled={isSubmittingWithdrawal} 
-        className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {withdrawalPaymentMethods.filter(m => m.enabled).map((m) => (
-          <option key={m.name} value={m.name}>{m.name}</option>
-        ))}
-      </select>
-    </div>
-
-    <div>
-      <label className="block font-bold text-gray-300 text-sm mb-2">Your Account Number / IBAN</label>
-      <input 
-        type="text" 
-        value={accountNumber}
-        onChange={(e) => setAccountNumber(e.target.value)}
-        placeholder="e.g., 03001234567" 
-        disabled={isSubmittingWithdrawal}
-        className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-      />
-    </div>
-
-    <div>
-      <label className="block font-bold text-gray-300 text-sm mb-2">Account Holder Name</label>
-      <input 
-        type="text" 
-        value={accountName}
-        onChange={(e) => setAccountName(e.target.value)}
-        placeholder="Account Name" 
-        required
-        disabled={isSubmittingWithdrawal}
-        className="w-full bg-[#131B2F] border border-gray-700 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-      />
-    </div>
-
-    <button 
-      onClick={handleWithdrawalSubmit}
-      disabled={isSubmittingWithdrawal}
-      className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition-colors mt-2 shadow-[0_0_15px_rgba(147,51,234,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-    >
-      {isSubmittingWithdrawal ? (
-        <>
-          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-          Processing...
-        </>
-      ) : (
-        'Submit Withdrawal Request'
-      )}
-    </button>
-  </div>
-</div>
-
-        <div className="bg-[#0B1120] rounded-2xl p-6 mb-8 border border-gray-800">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              <div className="bg-blue-900/30 p-2 rounded-lg mr-3">
-                <History size={20} className="text-blue-400" />
-              </div>
-              <h2 className="text-xl font-bold">Recent</h2>
-            </div>
-            <Link to="/transactions" className="text-blue-400 text-sm hover:text-blue-300 flex items-center">
-              View All <ArrowRight size={14} className="ml-1" />
-            </Link>
-          </div>
-
-          <div className="space-y-3">
-            {transactions.map((tx) => (
-              <div key={tx.id} className="bg-[#131B2F] rounded-xl p-4 border border-gray-800 flex justify-between items-center">
-                <div>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded mb-2 inline-block ${
-                    tx.type === 'Deposit' ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'
-                  }`}>
-                    {tx.type}
-                  </span>
-                  <p className={`font-bold text-lg ${tx.type === 'Deposit' ? 'text-yellow-400' : 'text-white'}`}>
-                    {tx.type === 'Deposit' ? '+' : '-'}{tx.amount} coins
-                  </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-gray-500 text-sm mb-2">{tx.date}</p>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full border ${
-                    tx.status === 'completed' 
-                      ? 'bg-green-900/40 text-green-500 border-green-700/50' 
-                      : tx.status === 'rejected'
-                      ? 'bg-red-900/40 text-red-500 border-red-700/50'
-                      : 'bg-yellow-900/40 text-yellow-500 border-yellow-700/50'
-                  }`}>
-                    {tx.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-            
-            {transactions.length === 0 && (
-              <p className="text-center text-gray-500 py-4">No recent transactions</p>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-
       </div>
-
-      <BuyCoinsModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        initialAmount={initialAmount} 
-        onSubmit={handleDepositSubmit}
-        minDeposit={minDeposit}
-        paymentMethods={paymentMethods}
-      />
     </div>
   );
-}
+                                                }
