@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/favicon.ico" />
   <title>GAMER ZONE PK - Pakistan's Premier Free Fire Tournament Platform</title>
   <meta name="description" content="Join Pakistan's most trusted Free Fire tournament platform. Compete in professional Solo, Duo, and Squad tournaments, win real cash prizes up to Rs.10,000+, and climb the leaderboard. Instant withdrawals, fair play guaranteed, and 24/7 support." />
@@ -13,88 +13,7 @@
   <meta property="og:image" content="https://i.ibb.co/JwjG5968/logo.png" />
   <meta property="og:description" content="Compete in professional Free Fire tournaments, win real cash prizes up to Rs.10,000+. Join 1,500+ active players on Pakistan's most trusted gaming platform." />
 
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Arial', sans-serif;
-      background-color: #0b0e14; /* Dark Background */
-      color: #cbd5e1; /* Normal Light Text (Old Style) */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      text-align: center;
-      user-select: none; /* Text selection disable */
-    }
-
-    .message-card {
-      background: #161b22;
-      padding: 40px 25px;
-      border-radius: 15px;
-      border: 2px solid #ffff00; /* Yellow Border */
-      max-width: 550px;
-      width: 90%;
-      box-shadow: 0 0 20px rgba(255, 255, 0, 0.2);
-    }
-
-    .logo-img {
-      width: 80px;
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      color: #ffff00; /* Yellow Heading */
-      font-size: 26px;
-      margin-bottom: 20px;
-      text-transform: uppercase;
-    }
-
-    p {
-      font-size: 16px;
-      line-height: 1.6;
-      margin-bottom: 20px;
-    }
-
-    /* Red Alert Message */
-    .red-alert {
-      color: #ff4d4d; /* Red Text */
-      font-weight: 900;
-      font-size: 18px;
-      background: rgba(255, 0, 0, 0.1);
-      padding: 15px;
-      border: 1px dashed #ff4d4d;
-      margin-bottom: 30px;
-      text-transform: uppercase;
-    }
-
-    .download-btn {
-      display: inline-block;
-      background: #ffff00; /* Yellow Button */
-      color: #000000; /* Black Text for contrast */
-      text-decoration: none;
-      padding: 15px 35px;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 18px;
-      transition: 0.3s;
-      box-shadow: 0 4px 15px rgba(255, 255, 0, 0.3);
-    }
-
-    .download-btn:hover {
-      background: #e6e600;
-      transform: translateY(-3px);
-    }
-
-    .footer-text {
-      margin-top: 25px;
-      font-size: 14px;
-      color: #8b949e;
-    }
-  </style>
-
-  <!-- Script to Disable Inspect, F12, Right Click, etc. -->
-  <script>
+<script>
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.onkeydown = function (e) {
       if (e.keyCode == 123) return false; // F12
@@ -102,38 +21,12 @@
       if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; // Ctrl+Shift+J
       if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; // Ctrl+U
     };
-  </script>
+</script>
 </head>
 
 <body>
-
-  <div class="message-card">
-    <img src="https://i.ibb.co/JwjG5968/logo.png" alt="Gamer Zone" class="logo-img">
-    
-    <h1>Hello Everyone Important Notice  !</h1>
-    
-    <p>
-      Hum website ko shift krhe he app par , kion ke website par laod bohot zyada he handle ni kr skta is lie website update hori hai jb tk ap log is <b>Gamer Zone Tournament App</b> ko install krlen is me honge tournaments daily.
-    </p>
-
-    <div class="red-alert">
-      ⚠️ WOHI DETAILS SE SIGN UP KRE JO GAMER ZONE WEBSITE ME DALI THI WRNA APKO COINS NHI MILENGE
-    </div>
-
-    <p>
-      Same Details se sign up kren Jo Gamer Zone me Dali thi apko 24 hour me Coins Recieve hojayengy jo Website me the. Thanks !
-    </p>
-
-    <a href="https://gamerzoneapp.wuaze.com/" class="download-btn">DOWNLOAD APP NOW</a>
-
-    <div class="footer-text">
-      Theek hai is link pe Click kre or Download krlen.
-    </div>
-  </div>
-
-  <!-- Root hidden -->
-  <div id="root" style="display:none;"></div>
-  
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 
 </html>
