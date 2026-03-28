@@ -110,7 +110,7 @@ export default function Home({ user, onLogout }) {
   const [copied, setCopied] = useState(false);
 
   // OPTIMIZATION LOCK: Stop 191M reads loop
-  const fetchLock = useRef(false);
+  
 
   // Pop-up logic (Resets on Refresh due to global variable)
   const [activePopup, setActivePopup] = useState(0); 
