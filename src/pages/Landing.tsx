@@ -38,9 +38,7 @@ const Landing: React.FC = () => {
             <Link to="/login" className="text-gray-300 hover:text-white font-medium transition-colors">
               Login
             </Link>
-            <Link to="/register" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base">
-              Sign Up
-            </Link>
+            
           </div>
         </div>
       </header>
@@ -85,9 +83,7 @@ const Landing: React.FC = () => {
             </p>
             
             <div className="flex flex-col space-y-4 max-w-xs mx-auto">
-              <Link to="/register" className="bg-yellow-500 text-black font-bold py-4 px-8 rounded-xl flex items-center justify-center hover:bg-yellow-400 transition-all shadow-xl shadow-yellow-900/20">
-                Start Playing Now <ArrowRight size={20} className="ml-2" />
-              </Link>
+              
               <Link to="/login" className="bg-white/5 border border-white/10 text-white font-bold py-4 px-8 rounded-xl hover:bg-white/10 transition-all">
                 Sign In
               </Link>
@@ -403,9 +399,7 @@ const Landing: React.FC = () => {
           </p>
           
           <div className="flex flex-col space-y-4 max-w-xs mx-auto mb-10">
-            <Link to="/register" className="bg-yellow-500 text-black font-bold py-4 px-8 rounded-xl flex items-center justify-center hover:bg-yellow-400 transition-all shadow-xl shadow-yellow-900/20">
-              Create Free Account <ArrowRight size={20} className="ml-2" />
-            </Link>
+            
             <Link to="/login" className="bg-white/5 border border-white/10 text-white font-bold py-4 px-8 rounded-xl hover:bg-white/10 transition-all">
               Sign In
             </Link>
