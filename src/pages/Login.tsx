@@ -392,10 +392,7 @@ export default function Login() {
                 >
                   Forgot your password?
                 </button>
-                <p className="text-gray-400 text-xs">
-                  Don't have an account?{' '}
-                  <Link to="/register" className="text-blue-500 hover:text-blue-400 font-medium transition-colors">Sign up</Link>
-                </p>
+                
               </div>
             </>
           )}
